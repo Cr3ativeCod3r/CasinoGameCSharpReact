@@ -1,4 +1,4 @@
-# 🧩 Realtime Chat App
+# 🧩 Crash Game
 
 Projekt webowej aplikacji gry hazardowej z funkcjonalnościami realtime (SignalR), autoryzacją użytkowników (JWT) oraz frontendem w React (TypeScript, MobX).
 
@@ -16,7 +16,7 @@ Projekt webowej aplikacji gry hazardowej z funkcjonalnościami realtime (SignalR
 - **Swagger** – interaktywna dokumentacja API
 
 ### 💻 Frontend (React)
-- **React 18+**
+- **React 19.x**
 - **TypeScript**
 - **MobX** – zarządzanie stanem aplikacji
 - **SignalR client** (`@microsoft/signalr`) – obsługa połączeń realtime
