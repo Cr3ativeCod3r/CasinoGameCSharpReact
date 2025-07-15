@@ -7,6 +7,7 @@ using backend.Data;
 using backend.Models;
 using backend.Services;
 using backend.Hubs;
+using Microsoft.AspNetCore.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -92,6 +93,8 @@ builder.Services.AddCors(options => {
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
+builder.Services.AddScoped<ICrashGameService, CrashGameService>();
+
 
 var app = builder.Build();
 
@@ -111,5 +114,26 @@ app.MapControllers();
 
 // Map SignalR hub
 app.MapHub<ChatHub>("/chatHub");
+app.MapHub<CrashGameHub>("/crashGameHub");
+
+
+// Initialize crash game service
+using (var scope = app.Services.CreateScope())
+{
+    var crashGameService = scope.ServiceProvider.GetRequiredService<ICrashGameService>();
+    var crashGameHub = scope.ServiceProvider.GetRequiredService<IHubContext<CrashGameHub>>();
+
+    // Obsługa eventów z CrashGameService
+    crashGameService.OnGameUpdate += async (gameUpdate) =>
+    {
+        await crashGameHub.Clients.All.SendAsync("GameUpdate", gameUpdate);
+    };
+
+    crashGameService.OnGameCrashed += async () =>
+    {
+        await crashGameHub.Clients.All.SendAsync("GameCrashed");
+    };
+}
+
 
 app.Run();

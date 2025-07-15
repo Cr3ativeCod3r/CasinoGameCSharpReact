@@ -10,7 +10,6 @@ interface AuthProviderProps {
 
 const AuthProvider = observer(({ children }: AuthProviderProps) => {
   useEffect(() => {
-    // Initialize auth state from cookies when component mounts
     authStore.initializeAuth();
   }, []);
 

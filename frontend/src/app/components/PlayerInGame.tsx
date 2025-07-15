@@ -1,7 +1,10 @@
-// components/PlayerInGame.tsx
 'use client'
+import { observer } from 'mobx-react-lite';
+import crashGameStore from '@/app/stores/CrashGameStore';
 
-export default function PlayerInGame() {
+const PlayerInGame = observer(() => {
+  const betsArray = crashGameStore.betsArray;
+
   return (
     <div 
       className="w-full border h-full"
@@ -29,22 +32,55 @@ export default function PlayerInGame() {
       <div className="overflow-y-auto max-h-96">
         <table className="w-full border-collapse">
           <tbody>
-            {/* Przykładowy gracz */}
-            <tr className="border-b" style={{ borderColor: 'rgb(41, 36, 36)' }}>
-              <td className="text-xs text-white w-36 text-center p-2">Player1</td>
-              <td className="text-xs text-white w-12 text-center p-2">✓</td>
-              <td className="text-xs text-white w-36 text-center p-2">1,000</td>
-              <td className="text-xs text-green-400 w-36 text-center p-2">+500</td>
-            </tr>
-            <tr className="border-b" style={{ borderColor: 'rgb(41, 36, 36)' }}>
-              <td className="text-xs text-white w-36 text-center p-2">Player2</td>
-              <td className="text-xs text-white w-12 text-center p-2"></td>
-              <td className="text-xs text-white w-36 text-center p-2">2,500</td>
-              <td className="text-xs text-red-400 w-36 text-center p-2">-2,500</td>
-            </tr>
+            {betsArray.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="text-center text-gray-400 text-sm p-4">
+                  No bets placed yet
+                </td>
+              </tr>
+            ) : (
+              betsArray.map((bet) => (
+                <tr key={bet.playerID} className="border-b" style={{ borderColor: 'rgb(41, 36, 36)' }}>
+                  <td className="text-xs text-white w-36 text-center p-2">
+                    {bet.playerName}
+                  </td>
+                  <td className="text-xs text-white w-12 text-center p-2">
+                    {bet.inGame.withdrew ? '✓' : ''}
+                  </td>
+                  <td className="text-xs text-white w-36 text-center p-2">
+                    {bet.betAmount.toLocaleString()}
+                  </td>
+                  <td className={`text-xs w-36 text-center p-2 ${
+                    bet.inGame.withdrew 
+                      ? bet.inGame.withdrawProfit > bet.betAmount 
+                        ? 'text-green-400' 
+                        : 'text-red-400'
+                      : crashGameStore.gameActive 
+                        ? 'text-yellow-400' 
+                        : 'text-red-400'
+                  }`}>
+                    {bet.inGame.withdrew 
+                      ? (bet.inGame.withdrawProfit > bet.betAmount ? '+' : '') + 
+                        (bet.inGame.withdrawProfit - bet.betAmount).toLocaleString()
+                      : crashGameStore.gameActive 
+                        ? `${(bet.betAmount * crashGameStore.multiplier).toLocaleString()} (${crashGameStore.formattedMultiplier})`
+                        : `-${bet.betAmount.toLocaleString()}`
+                    }
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
+      
+      {/* Stats */}
+      <div className="text-xs text-gray-400 p-2 border-t" style={{ borderColor: 'rgb(41, 36, 36)' }}>
+        Total players: {betsArray.length} | 
+        Cashed out: {betsArray.filter(bet => bet.inGame.withdrew).length}
+      </div>
     </div>
-  )
-}
+  );
+});
+
+export default PlayerInGame;
