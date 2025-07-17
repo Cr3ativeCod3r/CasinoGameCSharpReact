@@ -11,7 +11,8 @@ import PlayerInGame from '@/app/components/PlayerInGame'
 
 export default function GamePage() {
   const [activeView, setActiveView] = useState<'chat' | 'history'>('chat')
-
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  
   return (
     <div className="min-h-screen font-sans" style={{ backgroundColor: 'rgb(24, 26, 30)' }}>
       <Navbar />

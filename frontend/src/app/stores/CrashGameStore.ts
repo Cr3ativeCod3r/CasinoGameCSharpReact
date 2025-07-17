@@ -67,15 +67,10 @@ class CrashGameStore {
     }
 
     try {
-      const token = cookieUtils.getToken();
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
+
 
       this.connection = new signalR.HubConnectionBuilder()
-        .withUrl(`${this.url}/crashGameHub`, {
-          accessTokenFactory: () => token
-        })
+        .withUrl(`${this.url}/crashHub`)
         .withAutomaticReconnect()
         .build();
 

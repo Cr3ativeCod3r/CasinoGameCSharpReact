@@ -3,24 +3,19 @@ import { observer } from 'mobx-react-lite';
 import crashGameStore from '@/app/stores/CrashGameStore';
 import authStore from '@/app/stores/AuthStore';
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 const Navbar = observer(() => {
+  const router = useRouter();
   useEffect(() => {
-    // Connect to SignalR when component mounts
     if (authStore.user && !crashGameStore.connected) {
       crashGameStore.connect();
     }
-
-    // Cleanup on unmount
     return () => {
       crashGameStore.disconnect();
     };
   }, [authStore.user]);
 
-  const handleLogout = () => {
-    crashGameStore.disconnect();
-    authStore.logout();
-  };
 
   return (
     <div className="w-full h-10 text-white text-center text-3xl flex items-center" style={{ backgroundColor: 'rgb(41, 44, 53)' }}>
@@ -37,10 +32,31 @@ const Navbar = observer(() => {
             (Offline)
           </span>
         )}
+        {authStore.isAuthenticated && authStore.user && (
+          <>
+            <span className="ml-6 text-white font-semibold">
+              {authStore.user.nickName}
+            </span>
+            <button
+              onClick={() => authStore.logout()}
+              className="ml-4 py-1 px-3 rounded bg-[#d32f2f] hover:bg-[#b71c1c] text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#d32f2f]"
+              style={{ fontSize: 14 }}
+            >
+              Logout
+            </button>
+          </>
+        )}
+        {!authStore.isAuthenticated && (
+          <button
+            onClick={() => router.push('/')}
+            className="ml-6 py-1 px-3 rounded bg-[#287528] hover:bg-[#1e5a1e] text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#287528]"
+            style={{ fontSize: 14 }}
+          >
+            Login
+          </button>
+        )}
       </div>
-      <div className="text-orange-500 mr-12 text-xl cursor-pointer hover:text-orange-400 transition-colors" onClick={handleLogout}>
-        Logout
-      </div>
+
     </div>
   );
 });

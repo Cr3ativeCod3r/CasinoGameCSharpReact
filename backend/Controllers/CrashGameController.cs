@@ -8,7 +8,6 @@ namespace backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class CrashGameController : ControllerBase
     {
         private readonly ICrashGameService _crashGameService;
@@ -23,6 +22,7 @@ namespace backend.Controllers
         }
 
         [HttpGet("state")]
+        [AllowAnonymous]
         public async Task<ActionResult<CrashGameUpdate>> GetGameState()
         {
             var gameState = await _crashGameService.GetGameStateAsync();
@@ -30,6 +30,7 @@ namespace backend.Controllers
         }
 
         [HttpPost("bet")]
+        [Authorize]
         public async Task<ActionResult> PlaceBet([FromBody] PlaceBetRequest request)
         {
             var user = await _userManager.GetUserAsync(User);
@@ -51,6 +52,7 @@ namespace backend.Controllers
         }
 
         [HttpPost("withdraw")]
+        [Authorize]
         public async Task<ActionResult> Withdraw()
         {
             var user = await _userManager.GetUserAsync(User);

@@ -1,11 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { observer } from 'mobx-react-lite';
 import authStore from '@/app/stores/AuthStore';
 import { LoginDto } from '@/app/types/auth';
 
 const LoginForm = observer(() => {
+  const router = useRouter();
   const [formData, setFormData] = useState<LoginDto>({
     email: '',
     password: ''
@@ -57,6 +59,7 @@ const LoginForm = observer(() => {
         email: '',
         password: ''
       });
+      router.push('/game');
     }
   };
 

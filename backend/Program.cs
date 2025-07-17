@@ -65,7 +65,8 @@ builder.Services.AddAuthentication(options => {
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
             
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/chatHub"))
+            // Zmieniono na nowy endpoint CrashHub
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/crashHub"))
             {
                 context.Token = accessToken;
             }
@@ -95,7 +96,6 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
 builder.Services.AddScoped<ICrashGameService, CrashGameService>();
 
-
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -112,16 +112,14 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Map SignalR hub
-app.MapHub<ChatHub>("/chatHub");
-app.MapHub<CrashGameHub>("/crashGameHub");
-
+// Map zunifikowany SignalR hub
+app.MapHub<CrashHub>("/crashHub");
 
 // Initialize crash game service
 using (var scope = app.Services.CreateScope())
 {
     var crashGameService = scope.ServiceProvider.GetRequiredService<ICrashGameService>();
-    var crashGameHub = scope.ServiceProvider.GetRequiredService<IHubContext<CrashGameHub>>();
+    var crashGameHub = scope.ServiceProvider.GetRequiredService<IHubContext<CrashHub>>();
 
     // Obsługa eventów z CrashGameService
     crashGameService.OnGameUpdate += async (gameUpdate) =>
@@ -134,6 +132,5 @@ using (var scope = app.Services.CreateScope())
         await crashGameHub.Clients.All.SendAsync("GameCrashed");
     };
 }
-
 
 app.Run();

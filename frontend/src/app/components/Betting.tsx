@@ -8,16 +8,11 @@ const Betting = observer(() => {
   const [autoCashOutInput, setAutoCashOutInput] = useState('');
 
   useEffect(() => {
-    // Connect to crash game when component mounts
-    if (authStore.isAuthenticated) {
-      crashGameStore.connect();
-    }
-
+    crashGameStore.connect();
     return () => {
-      // Disconnect when component unmounts
       crashGameStore.disconnect();
     };
-  }, [authStore.isAuthenticated]);
+  }, []);
 
   useEffect(() => {
     // Update bet amount when input changes
@@ -65,7 +60,7 @@ const Betting = observer(() => {
   const getButtonAction = () => {
     if (crashGameStore.canWithdraw) return handleWithdraw;
     if (crashGameStore.canPlaceBet) return handlePlaceBet;
-    return () => {};
+    return () => { };
   };
 
   return (
@@ -76,18 +71,18 @@ const Betting = observer(() => {
         borderColor: 'rgb(41, 36, 36)'
       }}
     >
-     
+
       {/* Connection Status */}
       <div className="text-xs mt-1">
-        Status: {crashGameStore.connected ? 
-          <span className="text-green-400">Connected</span> : 
+        Status: {crashGameStore.connected ?
+          <span className="text-green-400">Connected</span> :
           <span className="text-red-400">Disconnected</span>
         }
       </div>
 
       {/* Timer */}
       <div className="text-xs mt-1">
-        {crashGameStore.bettingOpen ? 
+        {crashGameStore.bettingOpen ?
           `Betting ends in: ${crashGameStore.formattedTimeRemaining}` :
           `Game active: ${crashGameStore.formattedMultiplier}`
         }
@@ -143,8 +138,8 @@ const Betting = observer(() => {
 
       <button
         onClick={getButtonAction()}
-        disabled={crashGameStore.loading || !crashGameStore.connected || 
-                 (!crashGameStore.canPlaceBet && !crashGameStore.canWithdraw)}
+        disabled={crashGameStore.loading || !crashGameStore.connected ||
+          (!crashGameStore.canPlaceBet && !crashGameStore.canWithdraw)}
         className="w-full mt-2 rounded-2xl text-3xl text-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         style={{
           height: '200px',

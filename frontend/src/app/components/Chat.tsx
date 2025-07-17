@@ -3,7 +3,7 @@ import { observer } from 'mobx-react-lite';
 import * as signalR from '@microsoft/signalr';
 import authStore from '@/app/stores/AuthStore';
 import { cookieUtils } from '@/app/utils/cookies';
-import { ChatProps,ChatMessage  } from '@/app/types/chat'; 
+import { ChatProps, ChatMessage } from '@/app/types/chat';
 
 const Chat: React.FC<ChatProps> = observer(({ className, style }) => {
   const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
@@ -25,16 +25,7 @@ const Chat: React.FC<ChatProps> = observer(({ className, style }) => {
   // Pobierz stare wiadomości z API
   const fetchOldMessages = async (): Promise<void> => {
     try {
-      const token = getToken();
-      if (!token) return;
-
-      const response = await fetch(`${authStore.url}/api/chat/messages`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
+      const response = await fetch(`${authStore.url}/api/chat/messages`);
       if (response.ok) {
         const oldMessages: ChatMessage[] = await response.json();
         setMessages(oldMessages.reverse()); // Odwróć kolejność - najstarsze na górze
@@ -47,15 +38,9 @@ const Chat: React.FC<ChatProps> = observer(({ className, style }) => {
   // Inicjalizacja SignalR
   useEffect(() => {
     const token = getToken();
-    // if (!token || !authStore.isAuthenticated) {
-    //   console.error('Brak tokena autoryzacji lub użytkownik nie jest zalogowany');
-    //   return;
-    // }
 
     const newConnection = new signalR.HubConnectionBuilder()
-      .withUrl(`${authStore.url}/chatHub`, {
-        accessTokenFactory: () => token
-      })
+      .withUrl(`${authStore.url}/crashHub`)
       .withAutomaticReconnect()
       .build();
 
@@ -66,7 +51,7 @@ const Chat: React.FC<ChatProps> = observer(({ className, style }) => {
       .then(() => {
         console.log('Połączono z SignalR');
         setIsConnected(true);
-        fetchOldMessages(); // Pobierz stare wiadomości po połączeniu
+        fetchOldMessages();
       })
       .catch((err: Error) => {
         console.error('Błąd połączenia z SignalR:', err);
@@ -125,22 +110,22 @@ const Chat: React.FC<ChatProps> = observer(({ className, style }) => {
   };
 
   // Sprawdź czy użytkownik jest zalogowany
-//   if (!authStore.isAuthenticated) {
-//     return (
-//       <div className="flex-1">
-//         <div 
-//           className="h-64 border border-black overflow-y-scroll text-white p-2 flex items-center justify-center"
-//           style={{ backgroundColor: 'rgb(24, 26, 30)' }}
-//         >
-//           <p className="text-gray-400">Musisz być zalogowany, aby korzystać z chatu.</p>
-//         </div>
-//       </div>
-//     );
-//   }
+  //   if (!authStore.isAuthenticated) {
+  //     return (
+  //       <div className="flex-1">
+  //         <div 
+  //           className="h-64 border border-black overflow-y-scroll text-white p-2 flex items-center justify-center"
+  //           style={{ backgroundColor: 'rgb(24, 26, 30)' }}
+  //         >
+  //           <p className="text-gray-400">Musisz być zalogowany, aby korzystać z chatu.</p>
+  //         </div>
+  //       </div>
+  //     );
+  //   }
 
   return (
     <div className={`flex-1 ${className || ''}`} style={style}>
-      <div 
+      <div
         className="h-64 border border-black overflow-y-scroll text-white p-2"
         style={{ backgroundColor: 'rgb(24, 26, 30)' }}
       >
@@ -157,7 +142,7 @@ const Chat: React.FC<ChatProps> = observer(({ className, style }) => {
         ))}
         <div ref={messagesEndRef} />
       </div>
-      
+
       <form onSubmit={handleSubmit} className="mt-3">
         <input
           type="text"
@@ -165,7 +150,7 @@ const Chat: React.FC<ChatProps> = observer(({ className, style }) => {
           onChange={(e) => setInputMessage(e.target.value)}
           placeholder="Napisz wiadomość..."
           className="p-2 text-black"
-          style={{ 
+          style={{
             width: '92%',
             backgroundColor: '#bbb1b1'
           }}
