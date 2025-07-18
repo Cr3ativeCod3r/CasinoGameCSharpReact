@@ -1,131 +1,101 @@
-'use client';
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState } from 'react';
 import useAuthStore from '@/app/stores/AuthStore';
-import { LoginDto } from '@/app/types/auth';
 
 const LoginForm = () => {
-  const router = useRouter();
-  const { login, loading, error } = useAuthStore();
-  
-  const [formData, setFormData] = useState<LoginDto>({
+  const { login, isLoading, error, clearError } = useAuthStore();
+  const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
 
-  const [validationErrors, setValidationErrors] = useState<Partial<LoginDto>>({});
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
-    
-    if (validationErrors[name as keyof LoginDto]) {
-      setValidationErrors(prev => ({
-        ...prev,
-        [name]: undefined
-      }));
-    }
+    // Czyść błędy gdy użytkownik zaczyna pisać
+    if (error) clearError();
   };
 
-  const validateForm = (): boolean => {
-    const errors: Partial<LoginDto> = {};
-
-    if (!formData.email) {
-      errors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      errors.email = 'Please enter a valid email';
-    }
-
-    if (!formData.password) {
-      errors.password = 'Password is required';
-    }
-
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    if (!formData.email || !formData.password) {
+      return;
+    }
 
     const result = await login(formData);
     
     if (result.success) {
-      setFormData({
-        email: '',
-        password: ''
-      });
-      router.push('/game');
+      console.log('Zalogowano pomyślnie');
+      // Tutaj możesz dodać przekierowanie lub inne akcje po pomyślnym logowaniu
     }
   };
 
   return (
-    <div className="bg-[#181a1e] flex items-center justify-center">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-[#292c35] w-full"
-      >
+    <div className="max-w-md mx-auto mt-8 p-6 bg-white rounded-lg shadow-md">
+      <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+        Logowanie
+      </h2>
+      
+      <div className="space-y-4">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
             {error}
           </div>
         )}
+        
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            Email
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Wprowadź swój email"
+          />
+        </div>
 
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-200">
-            Email address
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            Hasło
           </label>
-          <div className="mt-1">
-            <input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              className={`bg-[#181a1e] text-white border ${validationErrors.email ? 'border-red-300' : 'border-gray-300'} rounded-md px-3 py-2 w-full placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c88200] focus:border-[#c88200]`}
-              placeholder="Enter your email"
-            />
-            {validationErrors.email && (
-              <p className="mt-2 text-sm text-red-600">{validationErrors.email}</p>
-            )}
-          </div>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Wprowadź swoje hasło"
+          />
         </div>
 
-        <div className="mt-8">
-          <label htmlFor="password" className="block text-sm font-medium text-gray-200">
-            Password
-          </label>
-          <div className="mt-1">
-            <input
-              id="password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              className={`bg-[#181a1e] text-white border ${validationErrors.password ? 'border-red-300' : 'border-gray-300'} rounded-md px-3 py-2 w-full placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c88200] focus:border-[#c88200]`}
-              placeholder="Enter your password"
-            />
-            {validationErrors.password && (
-              <p className="mt-2 text-sm text-red-600">{validationErrors.password}</p>
-            )}
-          </div>
-        </div>
+        <button
+          type="submit"
+          onClick={handleSubmit}
+          disabled={isLoading}
+          className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-blue-300 disabled:cursor-not-allowed transition duration-200"
+        >
+          {isLoading ? 'Logowanie...' : 'Zaloguj się'}
+        </button>
+      </div>
 
-        <div className="mt-12">
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full flex justify-center py-4 px-4 rounded-md shadow text-sm font-medium text-white transition-colors duration-200 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#c88200] hover:bg-[#a86a00] focus:outline-none focus:ring-2 focus:ring-[#c88200]'}`}
-          >
-            {loading ? 'Signing in...' : 'Sign in'}
-          </button>
-        </div>
-      </form>
+      <div className="mt-4 text-center">
+        <p className="text-sm text-gray-600">
+          Nie masz konta?{' '}
+          <a href="#" className="text-blue-600 hover:text-blue-500">
+            Zarejestruj się
+          </a>
+        </p>
+      </div>
     </div>
   );
 };

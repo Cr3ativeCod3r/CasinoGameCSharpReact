@@ -50,12 +50,5 @@ namespace backend.Controllers
 
             return Unauthorized(result);
         }
-
-        [HttpGet("check-email/{email}")]
-        public async Task<IActionResult> CheckEmail(string email)
-        {
-            var exists = await _authService.UserExistsAsync(email);
-            return Ok(new { exists });
-        }
     }
 }

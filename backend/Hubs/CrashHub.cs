@@ -143,8 +143,6 @@ namespace backend.Hubs
             {
                 _logger.LogInformation($"Player {user.UserName} connected to crash hub");
 
-                // Wyślij aktualny stan gry do nowo połączonego gracza
-                // NIE uruchamiamy nowej gry - tylko pobieramy aktualny stan
                 try
                 {
                     var gameState = await _crashGameService.GetGameStateAsync();
@@ -174,5 +172,24 @@ namespace backend.Hubs
 
             await base.OnDisconnectedAsync(exception);
         }
+
+
+     public async Task GetBalance()
+{
+    var userIdClaim = Context.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+    _logger.LogInformation($"[GetBalance] userId claim from token: {userIdClaim}");
+    var user = await _userManager.GetUserAsync(Context.User);
+    if (user != null)
+    {
+        _logger.LogInformation($"[GetBalance] User: {user.UserName}, Id: {user.Id}, Balance: {user.Balance}");
+        await Clients.Caller.SendAsync("BalanceUpdate", new { balance = user.Balance });
+    }
+    else
+    {
+        _logger.LogWarning($"[GetBalance] User not found for connection: {Context.ConnectionId}, userId claim: {userIdClaim}");
+        await Clients.Caller.SendAsync("BalanceUpdate", new { balance = 0 });
+    }
+}
+
     }
 }

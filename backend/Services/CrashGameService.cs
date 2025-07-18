@@ -185,7 +185,7 @@ namespace backend.Services
             _logger.LogInformation($"Game started with target crash: {targetCrash:F2}x");
 
             _gameTimer?.Dispose();
-            _gameTimer = new System.Timers.Timer(10); // 10ms = 0.01s
+            _gameTimer = new System.Timers.Timer(100); // 10ms = 0.01s
             _gameTimer.Elapsed += async (sender, e) =>
             {
                 bool shouldCrash = false;

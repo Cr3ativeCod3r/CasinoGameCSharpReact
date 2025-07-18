@@ -1,9 +1,13 @@
 'use client'
-import { observer } from 'mobx-react-lite';
-import crashGameStore from '@/app/stores/CrashGameStore';
+import useCrashGameStore, { 
+  getBetsArray, 
+  getFormattedMultiplier 
+} from '@/app/stores/CrashGameStore';
 
-const PlayerInGame = observer(() => {
-  const betsArray = crashGameStore.betsArray;
+const PlayerInGame = () => {
+  const { gameActive, multiplier } = useCrashGameStore();
+  const betsArray = getBetsArray(useCrashGameStore.getState());
+  const formattedMultiplier = getFormattedMultiplier(useCrashGameStore.getState());
 
   return (
     <div 
@@ -55,15 +59,15 @@ const PlayerInGame = observer(() => {
                       ? bet.inGame.withdrawProfit > bet.betAmount 
                         ? 'text-green-400' 
                         : 'text-red-400'
-                      : crashGameStore.gameActive 
+                      : gameActive 
                         ? 'text-yellow-400' 
                         : 'text-red-400'
                   }`}>
                     {bet.inGame.withdrew 
                       ? (bet.inGame.withdrawProfit > bet.betAmount ? '+' : '') + 
                         (bet.inGame.withdrawProfit - bet.betAmount).toLocaleString()
-                      : crashGameStore.gameActive 
-                        ? `${(bet.betAmount * crashGameStore.multiplier).toLocaleString()} (${crashGameStore.formattedMultiplier})`
+                      : gameActive 
+                        ? `${(bet.betAmount * multiplier).toLocaleString()} (${formattedMultiplier})`
                         : `-${bet.betAmount.toLocaleString()}`
                     }
                   </td>
@@ -81,6 +85,6 @@ const PlayerInGame = observer(() => {
       </div>
     </div>
   );
-});
+};
 
 export default PlayerInGame;

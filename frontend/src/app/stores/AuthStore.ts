@@ -1,132 +1,124 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import axios from 'axios';
-import { cookieUtils } from '@/app/utils/cookies';
+import {User, AuthState} from '@/app/types/auth'
 
-// --- Interfaces & Types ---
+const apiUrl ="http://localhost:5000"
 
-export interface User {
-  id: string;
-  email: string;
-  nickName: string;
-  token?: string;
-}
+const setCookie = (name: string, value: string, days = 7) => {
+  const expires = new Date();
+  expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+};
 
-export interface RegisterDto {
-  nickName: string;
-  email: string;
-  password: string;
-}
+const getCookie = (name: string) => {
+  const nameEQ = name + "=";
+  const ca = document.cookie.split(';');
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i];
+    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
+  }
+  return null;
+};
 
-export interface LoginDto {
-  email: string;
-  password: string;
-}
-
-export interface AuthResponse {
-  success: boolean;
-  message: string;
-  data?: any;
-}
-
-interface AuthState {
-  user: User | null;
-  loading: boolean;
-  error: string | null;
-  url: string;
-}
-
-interface AuthActions {
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
-  setUser: (user: User | null) => void;
-  register: (data: RegisterDto) => Promise<AuthResponse>;
-  login: (data: LoginDto) => Promise<AuthResponse>;
-  logout: () => void;
-  initializeAuth: () => void;
-}
-
-type AuthStore = AuthState & AuthActions & {
-  isAuthenticated: boolean;
+const deleteCookie = (name: string) => {
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
 };
 
 
-const useAuthStore = create<AuthStore>((set, get) => ({
-  user: null,
-  loading: false,
-  error: null,
-  url: "http://localhost:5000",
 
-  get isAuthenticated() {
-    return !!get().user;
-  },
+export interface AuthActions {
+  initialize: () => void;
+  register: (userData: Record<string, any>) => Promise<{ success: boolean; data?: any; error?: string }>;
+  login: (credentials: Record<string, any>) => Promise<{ success: boolean; data?: any; error?: string }>;
+  logout: () => void;
+  clearError: () => void;
+  updateUser: (userData: User) => void;
+}
 
-  setLoading: (loading: boolean) => set({ loading }),
-  
-  setError: (error: string | null) => set({ error }),
-  
-  setUser: (user: User | null) => set({ user }),
-
-  initializeAuth: () => {
-    const savedUser = cookieUtils.getUser();
-    if (savedUser) {
-      set({ user: savedUser });
+const useAuthStore = create<AuthState & AuthActions>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      initialize: () => {
+        const token = getCookie('authToken');
+        if (token) {
+          set({ token, isAuthenticated: true });
+        }
+      },
+      register: async (userData: Record<string, any>) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await axios.post(apiUrl + '/api/Auth/register', userData, {
+            headers: { 'Content-Type': 'application/json' },
+          });
+          const data = response.data;
+          if (data.token) {
+            setCookie('authToken', data.token);
+            set({ 
+              token: data.token, 
+              user: data.user, 
+              isAuthenticated: true, 
+              isLoading: false 
+            });
+          } else {
+            set({ isLoading: false });
+          }
+          return { success: true, data };
+        } catch (error: any) {
+          let message = error.response?.data?.message || error.message || 'Rejestracja nie powiodła się';
+          set({ error: message, isLoading: false });
+          return { success: false, error: message };
+        }
+      },
+      login: async (credentials: Record<string, any>) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await axios.post(apiUrl + '/api/Auth/login', credentials, {
+            headers: { 'Content-Type': 'application/json' },
+          });
+          const data = response.data;
+          if (data.token) {
+            setCookie('authToken', data.token);
+            set({ 
+              token: data.token, 
+              user: data.user, 
+              isAuthenticated: true, 
+              isLoading: false 
+            });
+          }
+          return { success: true, data };
+        } catch (error: any) {
+          let message = error.response?.data?.message || error.message || 'Logowanie nie powiodło się';
+          set({ error: message, isLoading: false });
+          return { success: false, error: message };
+        }
+      },
+      logout: () => {
+        deleteCookie('authToken');
+        set({ 
+          user: null, 
+          token: null, 
+          isAuthenticated: false, 
+          error: null 
+        });
+      },
+      clearError: () => set({ error: null }),
+      updateUser: (userData: User) => set({ user: userData }),
+    }),
+    {
+      name: 'auth-storage',
+      partialize: (state) => ({ 
+        user: state.user,
+        isAuthenticated: state.isAuthenticated 
+      }),
     }
-  },
-
-  register: async (data: RegisterDto): Promise<AuthResponse> => {
-    set({ loading: true, error: null });
-    try {
-      const response = await axios.post(get().url + '/api/Auth/register', data);
-      set({ loading: false });
-      return {
-        success: true,
-        message: 'Registration successful',
-        data: response.data
-      };
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Registration failed';
-      set({ loading: false, error: errorMessage });
-      return {
-        success: false,
-        message: errorMessage
-      };
-    }
-  },
-
-  login: async (data: LoginDto): Promise<AuthResponse> => {
-    set({ loading: true, error: null });
-    try {
-      const response = await axios.post<User>(get().url + '/api/Auth/login', data);
-      
-      if (response.data && response.data.token) {
-        const userData = response.data;
-        
-        cookieUtils.setToken(userData.token);
-        cookieUtils.setUser(userData);
-        set({ user: userData, loading: false, error: null });
-
-        return {
-          success: true,
-          message: 'Login successful',
-          data: userData
-        };
-      } else {
-        throw new Error('Invalid response from server: token missing.');
-      }
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.message || 'Login failed';
-      set({ loading: false, error: errorMessage });
-      return {
-        success: false,
-        message: errorMessage
-      };
-    }
-  },
-
-  logout: () => {
-    cookieUtils.clearAuth();
-    set({ user: null, error: null });
-  }
-}));
+  )
+);
 
 export default useAuthStore;

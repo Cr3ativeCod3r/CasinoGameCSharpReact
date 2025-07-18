@@ -1,170 +1,161 @@
-'use client';
-
-import { useState } from 'react';
+import React, { useState } from 'react';
 import useAuthStore from '@/app/stores/AuthStore';
-import { RegisterDto } from '@/app/types/auth';
 
 const RegisterForm = () => {
-  const { register, loading, error } = useAuthStore();
-  
-  const [formData, setFormData] = useState<RegisterDto>({
-    nickName: '',
+  const { register, isLoading, error, clearError } = useAuthStore();
+  const [formData, setFormData] = useState({
     email: '',
-    password: ''
+    password: '',
+    confirmPassword: '',
+    firstName: '',
+    lastName: ''
   });
 
-  const [validationErrors, setValidationErrors] = useState<Partial<RegisterDto>>({});
-  const [successMessage, setSuccessMessage] = useState<string>('');
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
     }));
-
-    if (validationErrors[name as keyof RegisterDto]) {
-      setValidationErrors(prev => ({
-        ...prev,
-        [name]: undefined
-      }));
-    }
-    if (successMessage) {
-      setSuccessMessage('');
-    }
+    // Czyść błędy gdy użytkownik zaczyna pisać
+    if (error) clearError();
   };
 
-  const validateForm = (): boolean => {
-    const errors: Partial<RegisterDto> = {};
-
-    if (!formData.nickName) {
-      errors.nickName = 'Nickname is required';
-    } else if (formData.nickName.length < 3) {
-      errors.nickName = 'Nickname must be at least 3 characters';
-    } else if (formData.nickName.length > 50) {
-      errors.nickName = 'Nickname cannot exceed 50 characters';
-    }
-
-    if (!formData.email) {
-      errors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      errors.email = 'Please enter a valid email';
-    }
-
-    if (!formData.password) {
-      errors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      errors.password = 'Password must be at least 6 characters';
-    } else if (formData.password.length > 100) {
-      errors.password = 'Password cannot exceed 100 characters';
-    }
-
-    setValidationErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    if (!formData.email || !formData.password || !formData.confirmPassword) {
+      return;
+    }
 
-    const result = await register(formData);
+    if (formData.password !== formData.confirmPassword) {
+      // Tutaj możesz dodać lokalną obsługę błędów
+      alert('Hasła nie są identyczne');
+      return;
+    }
+
+    // Przygotuj dane do wysłania (bez confirmPassword)
+    const { confirmPassword, ...registrationData } = formData;
+
+    const result = await register(registrationData);
     
     if (result.success) {
-      setSuccessMessage('Registration successful! You can now log in.');
-      setFormData({
-        nickName: '',
-        email: '',
-        password: ''
-      });
+      console.log('Rejestracja pomyślna');
+      // Tutaj możesz dodać przekierowanie lub inne akcje po pomyślnej rejestracji
     }
   };
 
   return (
-    <div className="bg-[#181a1e] flex items-center justify-center">
-      <form onSubmit={handleSubmit} className="bg-[#292c35] w-full">
+    <div className="max-w-md mx-auto mt-8 p-6 bg-white rounded-lg shadow-md">
+      <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
+        Rejestracja
+      </h2>
+      
+      <div className="space-y-4">
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
             {error}
           </div>
         )}
-
-        {successMessage && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4">
-            {successMessage}
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-2">
+              Imię
+            </label>
+            <input
+              type="text"
+              id="firstName"
+              name="firstName"
+              value={formData.firstName}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Imię"
+            />
           </div>
-        )}
+          
+          <div>
+            <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-2">
+              Nazwisko
+            </label>
+            <input
+              type="text"
+              id="lastName"
+              name="lastName"
+              value={formData.lastName}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Nazwisko"
+            />
+          </div>
+        </div>
 
         <div>
-          <label htmlFor="nickName" className="block text-sm font-medium text-gray-200">
-            Nickname
+          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            Email
           </label>
-          <div className="mt-1">
-            <input
-              id="nickName"
-              name="nickName"
-              type="text"
-              value={formData.nickName}
-              onChange={handleInputChange}
-              className={`bg-[#181a1e] text-white border ${validationErrors.nickName ? 'border-red-300' : 'border-gray-300'} rounded-md px-3 py-2 w-full placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c88200] focus:border-[#c88200]`}
-              placeholder="Enter your nickname"
-            />
-            {validationErrors.nickName && (
-              <p className="mt-2 text-sm text-red-600">{validationErrors.nickName}</p>
-            )}
-          </div>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Wprowadź swój email"
+          />
         </div>
 
-        <div className="mt-8">
-          <label htmlFor="email" className="block text-sm font-medium text-gray-200">
-            Email address
+        <div>
+          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            Hasło
           </label>
-          <div className="mt-1">
-            <input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              className={`bg-[#181a1e] text-white border ${validationErrors.email ? 'border-red-300' : 'border-gray-300'} rounded-md px-3 py-2 w-full placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c88200] focus:border-[#c88200]`}
-              placeholder="Enter your email"
-            />
-            {validationErrors.email && (
-              <p className="mt-2 text-sm text-red-600">{validationErrors.email}</p>
-            )}
-          </div>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            value={formData.password}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Wprowadź hasło"
+          />
         </div>
 
-        <div className="mt-8">
-          <label htmlFor="password" className="block text-sm font-medium text-gray-200">
-            Password
+        <div>
+          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+            Potwierdź hasło
           </label>
-          <div className="mt-1">
-            <input
-              id="password"
-              name="password"
-              type="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              className={`bg-[#181a1e] text-white border ${validationErrors.password ? 'border-red-300' : 'border-gray-300'} rounded-md px-3 py-2 w-full placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c88200] focus:border-[#c88200]`}
-              placeholder="Enter your password"
-            />
-            {validationErrors.password && (
-              <p className="mt-2 text-sm text-red-600">{validationErrors.password}</p>
-            )}
-          </div>
+          <input
+            type="password"
+            id="confirmPassword"
+            name="confirmPassword"
+            value={formData.confirmPassword}
+            onChange={handleChange}
+            required
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Potwierdź hasło"
+          />
         </div>
 
-        <div className="mt-12">
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full flex justify-center py-4 px-4 rounded-md shadow text-sm font-medium text-white transition-colors duration-200 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#c88200] hover:bg-[#a86a00] focus:outline-none focus:ring-2 focus:ring-[#c88200]'}`}
-          >
-            {loading ? 'Creating account...' : 'Create account'}
-          </button>
-        </div>
-      </form>
+        <button
+          type="submit"
+          onClick={handleSubmit}
+          disabled={isLoading}
+          className="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:bg-green-300 disabled:cursor-not-allowed transition duration-200"
+        >
+          {isLoading ? 'Rejestracja...' : 'Zarejestruj się'}
+        </button>
+      </div>
+
+      <div className="mt-4 text-center">
+        <p className="text-sm text-gray-600">
+          Masz już konto?{' '}
+          <a href="#" className="text-blue-600 hover:text-blue-500">
+            Zaloguj się
+          </a>
+        </p>
+      </div>
     </div>
   );
 };
