@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { observer } from 'mobx-react-lite';
-import authStore from '@/app/stores/AuthStore';
+import useAuthStore from '@/app/stores/AuthStore';
 import { RegisterDto } from '@/app/types/auth';
 
-const RegisterForm = observer(() => {
+const RegisterForm = () => {
+  const { register, loading, error } = useAuthStore();
+  
   const [formData, setFormData] = useState<RegisterDto>({
     nickName: '',
     email: '',
@@ -67,7 +68,7 @@ const RegisterForm = observer(() => {
     
     if (!validateForm()) return;
 
-    const result = await authStore.register(formData);
+    const result = await register(formData);
     
     if (result.success) {
       setSuccessMessage('Registration successful! You can now log in.');
@@ -82,14 +83,13 @@ const RegisterForm = observer(() => {
   return (
     <div className="bg-[#181a1e] flex items-center justify-center">
       <form onSubmit={handleSubmit} className="bg-[#292c35] w-full">
-        {authStore.error && (
+        {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-            {authStore.error}
+            {error}
           </div>
         )}
 
         {successMessage && (
-          // Stylistyka spójna z komunikatem o błędzie
           <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4">
             {successMessage}
           </div>
@@ -158,15 +158,15 @@ const RegisterForm = observer(() => {
         <div className="mt-12">
           <button
             type="submit"
-            disabled={authStore.loading}
-            className={`w-full flex justify-center py-4 px-4 rounded-md shadow text-sm font-medium text-white transition-colors duration-200 ${authStore.loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#c88200] hover:bg-[#a86a00] focus:outline-none focus:ring-2 focus:ring-[#c88200]'}`}
+            disabled={loading}
+            className={`w-full flex justify-center py-4 px-4 rounded-md shadow text-sm font-medium text-white transition-colors duration-200 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#c88200] hover:bg-[#a86a00] focus:outline-none focus:ring-2 focus:ring-[#c88200]'}`}
           >
-            {authStore.loading ? 'Creating account...' : 'Create account'}
+            {loading ? 'Creating account...' : 'Create account'}
           </button>
         </div>
       </form>
     </div>
   );
-});
+};
 
 export default RegisterForm;

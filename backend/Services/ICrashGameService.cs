@@ -9,6 +9,7 @@ namespace backend.Services
         Task<CrashGameUpdate> GetGameStateAsync();
         Task StartGameLoopAsync();
         void StartBettingTimer();
+        void StartGameIfNotStarted();
         event Func<CrashGameUpdate, Task> OnGameUpdate;
         event Func<Task> OnGameCrashed;
     }

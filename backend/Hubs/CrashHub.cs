@@ -1,3 +1,4 @@
+// CrashHub.cs
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Authorization;
 using backend.Data;
@@ -143,6 +144,7 @@ namespace backend.Hubs
                 _logger.LogInformation($"Player {user.UserName} connected to crash hub");
 
                 // Wyślij aktualny stan gry do nowo połączonego gracza
+                // NIE uruchamiamy nowej gry - tylko pobieramy aktualny stan
                 try
                 {
                     var gameState = await _crashGameService.GetGameStateAsync();

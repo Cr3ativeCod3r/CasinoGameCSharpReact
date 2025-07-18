@@ -4,7 +4,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Auth App',
-  description: 'Authentication app with Next.js and MobX',
+  description: 'Authentication app with Next.js and Zustand',
 };
 
 export default function RootLayout({

@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { observer } from 'mobx-react-lite';
-import authStore from '@/app/stores/AuthStore';
+import useAuthStore from '@/app/stores/AuthStore';
 import { LoginDto } from '@/app/types/auth';
 
-const LoginForm = observer(() => {
+const LoginForm = () => {
   const router = useRouter();
+  const { login, loading, error } = useAuthStore();
+  
   const [formData, setFormData] = useState<LoginDto>({
     email: '',
     password: ''
@@ -52,7 +53,7 @@ const LoginForm = observer(() => {
     
     if (!validateForm()) return;
 
-    const result = await authStore.login(formData);
+    const result = await login(formData);
     
     if (result.success) {
       setFormData({
@@ -69,9 +70,9 @@ const LoginForm = observer(() => {
         onSubmit={handleSubmit}
         className="bg-[#292c35] w-full"
       >
-        {authStore.error && (
+        {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-            {authStore.error}
+            {error}
           </div>
         )}
 
@@ -118,15 +119,15 @@ const LoginForm = observer(() => {
         <div className="mt-12">
           <button
             type="submit"
-            disabled={authStore.loading}
-            className={`w-full flex justify-center py-4 px-4 rounded-md shadow text-sm font-medium text-white transition-colors duration-200 ${authStore.loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#c88200] hover:bg-[#a86a00] focus:outline-none focus:ring-2 focus:ring-[#c88200]'}`}
+            disabled={loading}
+            className={`w-full flex justify-center py-4 px-4 rounded-md shadow text-sm font-medium text-white transition-colors duration-200 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#c88200] hover:bg-[#a86a00] focus:outline-none focus:ring-2 focus:ring-[#c88200]'}`}
           >
-            {authStore.loading ? 'Signing in...' : 'Sign in'}
+            {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </div>
       </form>
     </div>
   );
-});
+};
 
 export default LoginForm;

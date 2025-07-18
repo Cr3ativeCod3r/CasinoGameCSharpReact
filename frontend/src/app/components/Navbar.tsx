@@ -1,21 +1,25 @@
 'use client'
-import { observer } from 'mobx-react-lite';
 import crashGameStore from '@/app/stores/CrashGameStore';
-import authStore from '@/app/stores/AuthStore';
+import useAuthStore from '@/app/stores/AuthStore';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-const Navbar = observer(() => {
+const Navbar = () => {
   const router = useRouter();
+  const { user, isAuthenticated, logout, initializeAuth } = useAuthStore();
+
   useEffect(() => {
-    if (authStore.user && !crashGameStore.connected) {
+    initializeAuth();
+  }, [initializeAuth]);
+
+  useEffect(() => {
+    if (user && !crashGameStore.connected) {
       crashGameStore.connect();
     }
     return () => {
       crashGameStore.disconnect();
     };
-  }, [authStore.user]);
-
+  }, [user]);
 
   return (
     <div className="w-full h-10 text-white text-center text-3xl flex items-center" style={{ backgroundColor: 'rgb(41, 44, 53)' }}>
@@ -32,13 +36,13 @@ const Navbar = observer(() => {
             (Offline)
           </span>
         )}
-        {authStore.isAuthenticated && authStore.user && (
+        {isAuthenticated && user && (
           <>
             <span className="ml-6 text-white font-semibold">
-              {authStore.user.nickName}
+              {user.nickName}
             </span>
             <button
-              onClick={() => authStore.logout()}
+              onClick={logout}
               className="ml-4 py-1 px-3 rounded bg-[#d32f2f] hover:bg-[#b71c1c] text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#d32f2f]"
               style={{ fontSize: 14 }}
             >
@@ -46,7 +50,7 @@ const Navbar = observer(() => {
             </button>
           </>
         )}
-        {!authStore.isAuthenticated && (
+        {!isAuthenticated && (
           <button
             onClick={() => router.push('/')}
             className="ml-6 py-1 px-3 rounded bg-[#287528] hover:bg-[#1e5a1e] text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#287528]"
@@ -56,9 +60,8 @@ const Navbar = observer(() => {
           </button>
         )}
       </div>
-
     </div>
   );
-});
+};
 
 export default Navbar;

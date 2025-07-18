@@ -1,3 +1,4 @@
+// CrashGameService.cs
 using backend.Models;
 using backend.Data;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,9 @@ namespace backend.Services
         private System.Timers.Timer? _gameTimer;
         private readonly Random _random = new();
         private readonly object _lock = new();
+        
+        // Flaga do sprawdzenia czy gra została już uruchomiona
+        private bool _gameStarted = false;
 
         public event Func<CrashGameUpdate, Task> OnGameUpdate = delegate { return Task.CompletedTask; };
         public event Func<Task> OnGameCrashed = delegate { return Task.CompletedTask; };
@@ -35,9 +39,25 @@ namespace backend.Services
             _logger = logger;
             _timer = new CrashTimer(INITIAL_TIME);
             
-            StartBettingTimer();
+            // NIE uruchamiamy gry w konstruktorze
+            // Gra będzie uruchomiona tylko raz przez metodę StartGameIfNotStarted
         }
 
+        // Publiczna metoda do uruchomienia gry (wywoływana tylko raz)
+        public void StartGameIfNotStarted()
+        {
+            lock (_lock)
+            {
+                if (!_gameStarted)
+                {
+                    _gameStarted = true;
+                    _logger.LogInformation("Starting crash game service for the first time");
+                    StartBettingTimer();
+                }
+            }
+        }
+
+        // Change to public to match interface
         public void StartBettingTimer()
         {
             _bettingTimer?.Dispose();
@@ -145,6 +165,7 @@ namespace backend.Services
             return true;
         }
 
+        // Change to public to match interface
         public async Task StartGameLoopAsync()
         {
             var targetCrash = _random.NextDouble() * (10.0 - 1.5) + 1.5;
@@ -258,6 +279,13 @@ namespace backend.Services
                 BettingOpen = bettingOpen,
                 GameActive = gameCopy?.Active ?? false
             };
+        }
+
+        // Metoda do czyszczenia zasobów
+        public void Dispose()
+        {
+            _bettingTimer?.Dispose();
+            _gameTimer?.Dispose();
         }
     }
 }

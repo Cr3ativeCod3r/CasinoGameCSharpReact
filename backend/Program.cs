@@ -113,9 +113,10 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Map zunifikowany SignalR hub
+
 app.MapHub<CrashHub>("/crashHub");
 
-// Initialize crash game service
+// Inicjalizacja crash game service - TYLKO RAZ!
 using (var scope = app.Services.CreateScope())
 {
     var crashGameService = scope.ServiceProvider.GetRequiredService<ICrashGameService>();
@@ -131,6 +132,9 @@ using (var scope = app.Services.CreateScope())
     {
         await crashGameHub.Clients.All.SendAsync("GameCrashed");
     };
+
+    // KLUCZOWA ZMIANA: Uruchom grę tylko raz na starcie aplikacji
+    crashGameService.StartGameIfNotStarted();
 }
 
 app.Run();

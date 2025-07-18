@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { observer } from 'mobx-react-lite';
 import * as signalR from '@microsoft/signalr';
-import authStore from '@/app/stores/AuthStore';
+import useAuthStore from '@/app/stores/AuthStore';
 import { cookieUtils } from '@/app/utils/cookies';
 import { ChatProps, ChatMessage } from '@/app/types/chat';
 
-const Chat: React.FC<ChatProps> = observer(({ className, style }) => {
+const Chat: React.FC<ChatProps> = ({ className, style }) => {
+  const { isAuthenticated, user, url } = useAuthStore();
   const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState<string>('');
@@ -25,7 +25,7 @@ const Chat: React.FC<ChatProps> = observer(({ className, style }) => {
   // Pobierz stare wiadomości z API
   const fetchOldMessages = async (): Promise<void> => {
     try {
-      const response = await fetch(`${authStore.url}/api/chat/messages`);
+      const response = await fetch(`${url}/api/chat/messages`);
       if (response.ok) {
         const oldMessages: ChatMessage[] = await response.json();
         setMessages(oldMessages.reverse()); // Odwróć kolejność - najstarsze na górze
@@ -40,7 +40,7 @@ const Chat: React.FC<ChatProps> = observer(({ className, style }) => {
     const token = getToken();
 
     const newConnection = new signalR.HubConnectionBuilder()
-      .withUrl(`${authStore.url}/crashHub`)
+      .withUrl(`${url}/crashHub`)
       .withAutomaticReconnect()
       .build();
 
@@ -84,7 +84,7 @@ const Chat: React.FC<ChatProps> = observer(({ className, style }) => {
     return () => {
       newConnection.stop();
     };
-  }, [authStore.isAuthenticated]);
+  }, [isAuthenticated, url]);
 
   // Przewiń do dołu po dodaniu nowej wiadomości
   useEffect(() => {
@@ -110,7 +110,7 @@ const Chat: React.FC<ChatProps> = observer(({ className, style }) => {
   };
 
   // Sprawdź czy użytkownik jest zalogowany
-  //   if (!authStore.isAuthenticated) {
+  //   if (!isAuthenticated) {
   //     return (
   //       <div className="flex-1">
   //         <div 
@@ -134,7 +134,7 @@ const Chat: React.FC<ChatProps> = observer(({ className, style }) => {
             <span className="text-gray-400 text-xs">
               {msg.createdAt}
             </span>
-            <span className={`ml-2 ${msg.userId === authStore.user?.id ? 'text-blue-400' : 'text-orange-400'}`}>
+            <span className={`ml-2 ${msg.userId === user?.id ? 'text-blue-400' : 'text-orange-400'}`}>
               {msg.userNick}:
             </span>
             <span className="ml-2">{msg.content}</span>
@@ -159,6 +159,6 @@ const Chat: React.FC<ChatProps> = observer(({ className, style }) => {
       </form>
     </div>
   );
-});
+};
 
 export default Chat;
