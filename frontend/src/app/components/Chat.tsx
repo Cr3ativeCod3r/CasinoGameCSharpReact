@@ -5,48 +5,43 @@ import { cookieUtils } from '@/app/utils/cookies';
 import { ChatProps, ChatMessage } from '@/app/types/chat';
 
 const Chat: React.FC<ChatProps> = ({ className, style }) => {
-  const { isAuthenticated, user, url } = useAuthStore();
+  const { isAuthenticated, user, token } = useAuthStore();
   const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState<string>('');
   const [isConnected, setIsConnected] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Pobierz token z cookies
-  const getToken = (): string | null => {
-    return cookieUtils.getToken();
-  };
+  const API_URL ="http://localhost:5000"
 
-  // Przewiń do dołu
   const scrollToBottom = (): void => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Pobierz stare wiadomości z API
   const fetchOldMessages = async (): Promise<void> => {
     try {
-      const response = await fetch(`${url}/api/chat/messages`);
+      const response = await fetch(`${API_URL}/api/chat/messages`); 
       if (response.ok) {
         const oldMessages: ChatMessage[] = await response.json();
-        setMessages(oldMessages.reverse()); // Odwróć kolejność - najstarsze na górze
+        setMessages(oldMessages.reverse());
       }
     } catch (error) {
       console.error('Błąd pobierania starych wiadomości:', error);
     }
   };
 
-  // Inicjalizacja SignalR
   useEffect(() => {
-    const token = getToken();
-
+    if (!isAuthenticated || !token) {
+      return;
+    }
+    
     const newConnection = new signalR.HubConnectionBuilder()
-      .withUrl(`${url}/crashHub`)
+      .withUrl(`${API_URL}/crashHub?access_token=${token}`)
       .withAutomaticReconnect()
       .build();
 
     setConnection(newConnection);
 
-    // Uruchom połączenie
     newConnection.start()
       .then(() => {
         console.log('Połączono z SignalR');
@@ -58,18 +53,15 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
         setIsConnected(false);
       });
 
-    // Obsługa otrzymanych wiadomości
     newConnection.on('ReceiveMessage', (message: ChatMessage) => {
       setMessages(prevMessages => [...prevMessages, message]);
     });
 
-    // Obsługa błędów
     newConnection.on('Error', (error: string) => {
       console.error('Błąd z serwera:', error);
       alert(error);
     });
 
-    // Obsługa reconnection
     newConnection.onreconnected(() => {
       console.log('Ponownie połączono z SignalR');
       setIsConnected(true);
@@ -80,18 +72,15 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
       setIsConnected(false);
     });
 
-    // Cleanup
     return () => {
       newConnection.stop();
     };
-  }, [isAuthenticated, url]);
+  }, [isAuthenticated, token, API_URL]);
 
-  // Przewiń do dołu po dodaniu nowej wiadomości
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // Wyślij wiadomość
   const sendMessage = async (): Promise<void> => {
     if (inputMessage.trim() && connection && isConnected) {
       try {
@@ -103,25 +92,10 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
     }
   };
 
-  // Obsługa formularza
   const handleSubmit = (e: React.FormEvent): void => {
     e.preventDefault();
     sendMessage();
   };
-
-  // Sprawdź czy użytkownik jest zalogowany
-  //   if (!isAuthenticated) {
-  //     return (
-  //       <div className="flex-1">
-  //         <div 
-  //           className="h-64 border border-black overflow-y-scroll text-white p-2 flex items-center justify-center"
-  //           style={{ backgroundColor: 'rgb(24, 26, 30)' }}
-  //         >
-  //           <p className="text-gray-400">Musisz być zalogowany, aby korzystać z chatu.</p>
-  //         </div>
-  //       </div>
-  //     );
-  //   }
 
   return (
     <div className={`flex-1 ${className || ''}`} style={style}>
@@ -132,7 +106,7 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
         {messages.map((msg, index) => (
           <div key={msg.id || index} className="mb-1 text-xs">
             <span className="text-gray-400 text-xs">
-              {msg.createdAt}
+              {new Date(msg.createdAt).toLocaleTimeString()}
             </span>
             <span className={`ml-2 ${msg.userId === user?.id ? 'text-blue-400' : 'text-orange-400'}`}>
               {msg.userNick}:

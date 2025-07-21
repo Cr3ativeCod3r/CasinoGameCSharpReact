@@ -55,7 +55,8 @@ namespace backend.Services
                         Message = "Rejestracja zakończona pomyślnie.",
                         Token = token,
                         RefreshToken = refreshToken,
-                        ExpiresAt = DateTime.UtcNow.AddMinutes(60)
+                        ExpiresAt = DateTime.UtcNow.AddMinutes(60),
+                        User = new { Id = user.Id, NickName = user.NickName }
                     };
                 }
 
@@ -102,7 +103,8 @@ namespace backend.Services
                         Message = "Logowanie zakończone pomyślnie.",
                         Token = token,
                         RefreshToken = refreshToken,
-                        ExpiresAt = DateTime.UtcNow.AddMinutes(60)
+                        ExpiresAt = DateTime.UtcNow.AddMinutes(60),
+                        User = new { Id = user.Id, NickName = user.NickName }
                     };
                 }
 

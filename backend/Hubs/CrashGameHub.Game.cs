@@ -1,6 +1,4 @@
-// CrashHub.cs
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.AspNetCore.Authorization;
 using backend.Data;
 using backend.Models;
 using backend.Services;
@@ -10,18 +8,18 @@ using System.Security.Claims;
 
 namespace backend.Hubs
 {
-    public class CrashHub : Hub
+    public partial class CrashGameHub : Hub
     {
         private readonly ApplicationDbContext _context;
         private readonly ICrashGameService _crashGameService;
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly ILogger<CrashHub> _logger;
+        private readonly ILogger<CrashGameHub> _logger;
 
-        public CrashHub(
+        public CrashGameHub(
             ApplicationDbContext context,
             ICrashGameService crashGameService,
             UserManager<ApplicationUser> userManager,
-            ILogger<CrashHub> logger)
+            ILogger<CrashGameHub> logger)
         {
             _context = context;
             _crashGameService = crashGameService;
@@ -29,55 +27,6 @@ namespace backend.Hubs
             _logger = logger;
         }
 
-        // Chat functionality
-        public async Task SendMessage(string message)
-        {
-            var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            var userNick = Context.User?.FindFirst(ClaimTypes.Name)?.Value;
-
-            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(userNick))
-            {
-                await Clients.Caller.SendAsync("Error", "Nie udało się zidentyfikować użytkownika");
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(message) || message.Length > 500)
-            {
-                await Clients.Caller.SendAsync("Error", "Wiadomość jest pusta lub za długa");
-                return;
-            }
-
-            var newMessage = new Message
-            {
-                Content = message.Trim(),
-                UserId = userId,
-                UserNick = userNick,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            try
-            {
-                _context.Messages.Add(newMessage);
-                await _context.SaveChangesAsync();
-
-                // Wyślij wiadomość do wszystkich połączonych klientów
-                await Clients.All.SendAsync("ReceiveMessage", new
-                {
-                    id = newMessage.Id,
-                    content = newMessage.Content,
-                    userNick = newMessage.UserNick,
-                    userId = newMessage.UserId,
-                    createdAt = newMessage.CreatedAt.ToString("HH:mm")
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error sending message for user {UserId}", userId);
-                await Clients.Caller.SendAsync("Error", "Nie udało się wysłać wiadomości");
-            }
-        }
-
-        // Crash game functionality
         public async Task PlaceBet(PlaceBetRequest request)
         {
             var user = await _userManager.GetUserAsync(Context.User);
@@ -143,8 +92,6 @@ namespace backend.Hubs
             {
                 _logger.LogInformation($"Player {user.UserName} connected to crash hub");
 
-                // Wyślij aktualny stan gry do nowo połączonego gracza
-                // NIE uruchamiamy nowej gry - tylko pobieramy aktualny stan
                 try
                 {
                     var gameState = await _crashGameService.GetGameStateAsync();

@@ -1,291 +1,272 @@
-import { makeAutoObservable, runInAction } from 'mobx';
+import { create } from 'zustand';
 import * as signalR from '@microsoft/signalr';
-import { cookieUtils } from '@/app/utils/cookies';
 import authStore from './AuthStore';
+import {
+  CrashBet,
+  CrashGameUpdate,
+  PlaceBetRequest,
+  BalanceUpdate,
+  CrashGameState,
+  CrashGameActions
+} from '@/app/types/crash'
 
-export interface CrashBet {
-  playerID: string;
-  playerName: string;
-  betAmount: number;
-  inGame: {
-    withdrew: boolean;
-    withdrawMultiplier: number;
-    withdrawProfit: number;
-  };
-}
 
-export interface CrashGameUpdate {
-  multiplier: number;
-  xChart: number;
-  yChart: number;
-  bets: { [key: string]: CrashBet };
-  timeRemaining: number;
-  bettingOpen: boolean;
-  gameActive: boolean;
-}
+type CrashGameStore = CrashGameState & CrashGameActions;
 
-export interface PlaceBetRequest {
-  betAmount: number;
-}
-
-export interface BalanceUpdate {
-  balance: number;
-}
-
-class CrashGameStore {
-  // Game state
-  multiplier: number = 1.0;
-  xChart: number = 0.0;
-  yChart: number = 0.0;
-  bets: { [key: string]: CrashBet } = {};
-  timeRemaining: number = 10.0;
-  bettingOpen: boolean = true;
-  gameActive: boolean = false;
-  
-  // User balance
-  balance: number = 0;
-  
-  // UI state
-  betAmount: number = 0;
-  autoCashOut: number = 0;
-  loading: boolean = false;
-  error: string | null = null;
-  connected: boolean = false;
-  
-  // SignalR
-  private connection: signalR.HubConnection | null = null;
-  private url: string = "http://localhost:5000";
-
-  constructor() {
-    makeAutoObservable(this);
-  }
+const useCrashGameStore = create<CrashGameStore>((set, get) => ({
+  // Initial state
+  multiplier: 1.0,
+  xChart: 0.0,
+  yChart: 0.0,
+  bets: {},
+  timeRemaining: 10.0,
+  bettingOpen: true,
+  gameActive: false,
+  balance: 0,
+  betAmount: 0,
+  autoCashOut: 0,
+  loading: false,
+  error: null,
+  connected: false,
+  connection: null,
+  url: "http://localhost:5000",
 
   // Connection management
-  async connect() {
-    if (this.connection?.state === signalR.HubConnectionState.Connected) {
+  connect: async () => {
+    const state = get();
+    if (state.connection?.state === signalR.HubConnectionState.Connected) {
       return;
     }
 
     try {
-
-
-      this.connection = new signalR.HubConnectionBuilder()
-        .withUrl(`${this.url}/crashHub`)
+      const connection = new signalR.HubConnectionBuilder()
+        .withUrl(`${state.url}/crashHub`)
         .withAutomaticReconnect()
         .build();
 
       // Event handlers
-      this.connection.on('GameUpdate', (gameUpdate: CrashGameUpdate) => {
-        this.handleGameUpdate(gameUpdate);
+      connection.on('GameUpdate', (gameUpdate: CrashGameUpdate) => {
+        get().handleGameUpdate(gameUpdate);
       });
 
-      this.connection.on('GameCrashed', () => {
-        this.handleGameCrashed();
+      connection.on('GameCrashed', () => {
+        get().handleGameCrashed();
       });
 
-      this.connection.on('BetPlaced', (response: { success: boolean; amount?: number; message?: string }) => {
-        this.handleBetPlaced(response);
+      connection.on('BetPlaced', (response: { success: boolean; amount?: number; message?: string }) => {
+        get().handleBetPlaced(response);
       });
 
-      this.connection.on('WithdrawSuccess', (response: { success: boolean; message?: string }) => {
-        this.handleWithdrawSuccess(response);
+      connection.on('WithdrawSuccess', (response: { success: boolean; message?: string }) => {
+        get().handleWithdrawSuccess(response);
       });
 
-      this.connection.on('BalanceUpdate', (balanceUpdate: BalanceUpdate) => {
-        this.handleBalanceUpdate(balanceUpdate);
+      connection.on('BalanceUpdate', (balanceUpdate: BalanceUpdate) => {
+        get().handleBalanceUpdate(balanceUpdate);
       });
 
-      this.connection.on('Error', (error: string) => {
-        this.setError(error);
+      connection.on('Error', (error: string) => {
+        get().setError(error);
       });
 
-      await this.connection.start();
-      runInAction(() => {
-        this.connected = true;
-        this.error = null;
+      await connection.start();
+      set({
+        connection,
+        connected: true,
+        error: null
       });
 
       console.log('Connected to Crash Game Hub');
-      
+
       // Request initial balance
-      await this.requestBalance();
+      await get().requestBalance();
     } catch (error) {
       console.error('Connection failed:', error);
-      runInAction(() => {
-        this.connected = false;
-        this.error = 'Connection failed';
+      set({
+        connected: false,
+        error: 'Connection failed'
       });
     }
-  }
+  },
 
-  async disconnect() {
-    if (this.connection) {
-      await this.connection.stop();
-      this.connection = null;
-      runInAction(() => {
-        this.connected = false;
+  disconnect: async () => {
+    const { connection } = get();
+    if (connection) {
+      await connection.stop();
+      set({
+        connection: null,
+        connected: false
       });
     }
-  }
+  },
 
   // Balance management
-  async requestBalance() {
-    if (!this.connection) return;
-    
+  requestBalance: async () => {
+    const { connection } = get();
+    if (!connection) return;
+
     try {
-      await this.connection.invoke('GetBalance');
+      await connection.invoke('GetBalance');
     } catch (error) {
       console.error('Failed to request balance:', error);
     }
-  }
+  },
 
   // Game actions
-  async placeBet() {
-    if (!this.connection || !this.bettingOpen || this.betAmount <= 0) {
+  placeBet: async () => {
+    const { connection, bettingOpen, betAmount } = get();
+    if (!connection || !bettingOpen || betAmount <= 0) {
       return;
     }
 
     try {
-      this.setLoading(true);
-      this.setError(null);
+      get().setLoading(true);
+      get().setError(null);
 
-      await this.connection.invoke('PlaceBet', {
-        betAmount: this.betAmount
+      await connection.invoke('PlaceBet', {
+        betAmount: betAmount
       } as PlaceBetRequest);
     } catch (error) {
       console.error('Place bet failed:', error);
-      this.setError('Failed to place bet');
-      this.setLoading(false);
+      get().setError('Failed to place bet');
+      get().setLoading(false);
     }
-  }
+  },
 
-  async withdraw() {
-    if (!this.connection || !this.gameActive) {
+  withdraw: async () => {
+    const { connection, gameActive } = get();
+    if (!connection || !gameActive) {
       return;
     }
 
     try {
-      this.setLoading(true);
-      this.setError(null);
+      get().setLoading(true);
+      get().setError(null);
 
-      await this.connection.invoke('Withdraw');
+      await connection.invoke('Withdraw');
     } catch (error) {
       console.error('Withdraw failed:', error);
-      this.setError('Failed to withdraw');
-      this.setLoading(false);
+      get().setError('Failed to withdraw');
+      get().setLoading(false);
     }
-  }
+  },
 
   // Event handlers
-  private handleGameUpdate(gameUpdate: CrashGameUpdate) {
-    runInAction(() => {
-      this.multiplier = gameUpdate.multiplier;
-      this.xChart = gameUpdate.xChart;
-      this.yChart = gameUpdate.yChart;
-      this.bets = gameUpdate.bets;
-      this.timeRemaining = gameUpdate.timeRemaining;
-      this.bettingOpen = gameUpdate.bettingOpen;
-      this.gameActive = gameUpdate.gameActive;
+  handleGameUpdate: (gameUpdate: CrashGameUpdate) => {
+    set({
+      multiplier: gameUpdate.multiplier,
+      xChart: gameUpdate.xChart,
+      yChart: gameUpdate.yChart,
+      bets: gameUpdate.bets,
+      timeRemaining: gameUpdate.timeRemaining,
+      bettingOpen: gameUpdate.bettingOpen,
+      gameActive: gameUpdate.gameActive
     });
-  }
+  },
 
-  private handleGameCrashed() {
-    runInAction(() => {
-      this.gameActive = false;
-    });
-    console.log('Game crashed at:', this.multiplier.toFixed(2) + 'x');
-  }
+  handleGameCrashed: () => {
+    set({ gameActive: false });
+    console.log('Game crashed at:', get().multiplier.toFixed(2) + 'x');
+  },
 
-  private handleBetPlaced(response: { success: boolean; amount?: number; message?: string }) {
-    runInAction(() => {
-      this.loading = false;
-      if (response.success) {
-        this.error = null;
-        // Reset bet amount after successful bet
-        this.betAmount = 0;
-      } else {
-        this.error = response.message || 'Failed to place bet';
-      }
-    });
-  }
+  handleBetPlaced: (response: { success: boolean; amount?: number; message?: string }) => {
+    set({ loading: false });
+    if (response.success) {
+      set({
+        error: null,
+        betAmount: 0 // Reset bet amount after successful bet
+      });
+    } else {
+      set({ error: response.message || 'Failed to place bet' });
+    }
+  },
 
-  private handleWithdrawSuccess(response: { success: boolean; message?: string }) {
-    runInAction(() => {
-      this.loading = false;
-      if (response.success) {
-        this.error = null;
-      } else {
-        this.error = response.message || 'Failed to withdraw';
-      }
-    });
-  }
+  handleWithdrawSuccess: (response: { success: boolean; message?: string }) => {
+    set({ loading: false });
+    if (response.success) {
+      set({ error: null });
+    } else {
+      set({ error: response.message || 'Failed to withdraw' });
+    }
+  },
 
-  private handleBalanceUpdate(balanceUpdate: BalanceUpdate) {
-    runInAction(() => {
-      this.balance = balanceUpdate.balance;
-    });
-  }
+  handleBalanceUpdate: (balanceUpdate: BalanceUpdate) => {
+    set({ balance: balanceUpdate.balance });
+  },
 
   // Setters
-  setBetAmount(amount: number) {
-    this.betAmount = amount;
-  }
+  setBetAmount: (amount: number) => {
+    set({ betAmount: amount });
+  },
 
-  setAutoCashOut(amount: number) {
-    this.autoCashOut = amount;
-  }
+  setAutoCashOut: (amount: number) => {
+    set({ autoCashOut: amount });
+  },
 
-  setLoading(loading: boolean) {
-    this.loading = loading;
-  }
+  setLoading: (loading: boolean) => {
+    set({ loading });
+  },
 
-  setError(error: string | null) {
-    this.error = error;
-  }
-
-  // Getters
-  get currentUserBet(): CrashBet | null {
-    if (!authStore.user) return null;
-    return this.bets[authStore.user.id] || null;
-  }
-
-  get hasActiveBet(): boolean {
-    return this.currentUserBet !== null;
-  }
-
-  get canPlaceBet(): boolean {
-    return this.connected && this.bettingOpen && !this.hasActiveBet && this.betAmount > 0 && this.betAmount <= this.balance;
-  }
-
-  get canWithdraw(): boolean {
-    return this.connected && this.gameActive && this.hasActiveBet && !this.currentUserBet?.inGame.withdrew;
-  }
-
-  get formattedMultiplier(): string {
-    return this.multiplier.toFixed(2) + 'x';
-  }
-
-  get formattedTimeRemaining(): string {
-    return Math.max(0, this.timeRemaining).toFixed(1) + 's';
-  }
-
-  get formattedBalance(): string {
-    return this.balance.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
-
-  get betsArray(): CrashBet[] {
-    return Object.values(this.bets);
-  }
+  setError: (error: string | null) => {
+    set({ error });
+  },
 
   // Auto cash out logic
-  checkAutoCashOut() {
-    if (this.autoCashOut > 0 && 
-        this.gameActive && 
-        this.multiplier >= this.autoCashOut && 
-        this.canWithdraw) {
-      this.withdraw();
+  checkAutoCashOut: () => {
+    const state = get();
+    if (state.autoCashOut > 0 &&
+      state.gameActive &&
+      state.multiplier >= state.autoCashOut &&
+      getCurrentUserBet(state) &&
+      canWithdraw(state)) {
+      get().withdraw();
     }
   }
-}
+}));
 
-export default new CrashGameStore();
+// Helper functions for computed values (since Zustand doesn't have getters)
+export const getCurrentUserBet = (state: CrashGameState): CrashBet | null => {
+  if (!authStore.user) return null;
+  return state.bets[authStore.user.id] || null;
+};
+
+export const getHasActiveBet = (state: CrashGameState): boolean => {
+  return getCurrentUserBet(state) !== null;
+};
+
+export const canPlaceBet = (state: CrashGameState): boolean => {
+  return state.connected &&
+    state.bettingOpen &&
+    !getHasActiveBet(state) &&
+    state.betAmount > 0 &&
+    state.betAmount <= state.balance;
+};
+
+export const canWithdraw = (state: CrashGameState): boolean => {
+  const currentBet = getCurrentUserBet(state);
+  return state.connected &&
+    state.gameActive &&
+    getHasActiveBet(state) &&
+    !currentBet?.inGame.withdrew;
+};
+
+export const getFormattedMultiplier = (state: CrashGameState): string => {
+  return state.multiplier.toFixed(2) + 'x';
+};
+
+export const getFormattedTimeRemaining = (state: CrashGameState): string => {
+  return Math.max(0, state.timeRemaining).toFixed(1) + 's';
+};
+
+export const getFormattedBalance = (state: CrashGameState): string => {
+  return state.balance.toLocaleString('pl-PL', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+};
+
+export const getBetsArray = (state: CrashGameState): CrashBet[] => {
+  return Object.values(state.bets);
+};
+
+export default useCrashGameStore;

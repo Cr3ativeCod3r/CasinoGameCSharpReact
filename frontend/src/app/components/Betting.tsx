@@ -1,67 +1,189 @@
 import { useState, useEffect } from 'react';
-import { observer } from 'mobx-react-lite';
-import crashGameStore from '@/app/stores/CrashGameStore';
-import authStore from '@/app/stores/AuthStore';
+import useCrashGameStore, { 
+  canPlaceBet, 
+  canWithdraw, 
+  getCurrentUserBet, 
+  getHasActiveBet, 
+  getFormattedMultiplier, 
+  getFormattedTimeRemaining 
+} from '@/app/stores/CrashGameStore';
+import useAuthStore from '@/app/stores/AuthStore';
+import { CrashGamePhase } from '@/app/types/crash';
 
-const Betting = observer(() => {
+const Betting = () => {
   const [betInput, setBetInput] = useState('');
   const [autoCashOutInput, setAutoCashOutInput] = useState('');
+  const [lastBetPlaced, setLastBetPlaced] = useState(false);
+
+  const { user, token, isAuthenticated } = useAuthStore();
+
+  const {
+    phase,
+    multiplier,
+    bets,
+    autoCashOut,
+    loading,
+    connected,
+    error,
+    balance,
+    setBetAmount,
+    setAutoCashOut,
+    placeBet,
+    withdraw,
+    connect,
+    disconnect,
+    checkAutoCashOut,
+    timeRemaining,
+  } = useCrashGameStore();
 
   useEffect(() => {
-    crashGameStore.connect();
+    if (isAuthenticated && token) {
+      connect();
+    }
     return () => {
-      crashGameStore.disconnect();
+      disconnect();
     };
-  }, []);
+  }, [connect, disconnect, isAuthenticated, token, user?.id]);
 
   useEffect(() => {
-    // Update bet amount when input changes
     const amount = parseFloat(betInput) || 0;
-    crashGameStore.setBetAmount(amount);
-  }, [betInput]);
+    setBetAmount(amount);
+  }, [betInput, setBetAmount]);
 
   useEffect(() => {
-    // Update auto cash out when input changes
     const amount = parseFloat(autoCashOutInput) || 0;
-    crashGameStore.setAutoCashOut(amount);
-  }, [autoCashOutInput]);
+    setAutoCashOut(amount);
+  }, [autoCashOutInput, setAutoCashOut]);
 
   useEffect(() => {
-    // Auto cash out logic
-    crashGameStore.checkAutoCashOut();
-  }, [crashGameStore.multiplier, crashGameStore.autoCashOut]);
+    checkAutoCashOut();
+  }, [multiplier, autoCashOut, checkAutoCashOut]);
+
+  useEffect(() => {
+    const state = useCrashGameStore.getState();
+    const hasActiveBet = getHasActiveBet(state);
+    if (hasActiveBet && !lastBetPlaced) {
+      setBetInput('');
+      setLastBetPlaced(true);
+    } else if (!hasActiveBet && lastBetPlaced) {
+      setLastBetPlaced(false);
+    }
+  }, [getHasActiveBet(useCrashGameStore.getState()), lastBetPlaced]);
 
   const handlePlaceBet = () => {
-    crashGameStore.placeBet();
+    placeBet();
   };
 
   const handleWithdraw = () => {
-    crashGameStore.withdraw();
+    withdraw();
   };
 
   const getButtonText = () => {
-    if (crashGameStore.loading) return 'Loading...';
-    if (!crashGameStore.connected) return 'Connecting...';
-    if (!crashGameStore.bettingOpen && crashGameStore.gameActive) {
-      return crashGameStore.canWithdraw ? 'CASH OUT' : 'GAME ACTIVE';
+  const state = useCrashGameStore.getState();
+  
+  // Debug info
+  console.log('Debug getButtonText:', {
+    phase: state.phase,
+    loading: loading,
+    connected: connected,
+    isAuthenticated: isAuthenticated,
+    hasActiveBet: getHasActiveBet(state),
+    canPlaceBetState: canPlaceBet(state),
+    canWithdrawState: canWithdraw(state),
+    betAmount: state.betAmount,
+    balance: state.balance
+  });
+  
+  if (loading) return 'Loading...';
+  if (!connected) return 'Connecting...';
+  if (!isAuthenticated) return 'Login Required';
+  
+  // Najpierw sprawdź czy user ma aktywny bet
+  if (getHasActiveBet(state)) {
+    if (state.phase === CrashGamePhase.Running && canWithdraw(state)) {
+      return 'CASH OUT';
     }
-    if (crashGameStore.hasActiveBet) return 'BET PLACED';
-    if (!crashGameStore.bettingOpen) return 'BETTING CLOSED';
-    return 'PLACE BET';
-  };
+    if (state.phase === CrashGamePhase.Betting) {
+      return 'BET PLACED';
+    }
+    if (state.phase === CrashGamePhase.Running) {
+      return 'GAME ACTIVE';
+    }
+    if (state.phase === CrashGamePhase.Crashed) {
+      return 'CRASHED';
+    }
+  }
+  
+  // Jeśli nie ma bet'a
+  if (state.phase === CrashGamePhase.Betting) {
+    if (canPlaceBet(state)) {
+      return 'PLACE BET';
+    } else if (state.betAmount <= 0) {
+      return 'ENTER AMOUNT';
+    } else if (state.betAmount > state.balance) {
+      return 'INSUFFICIENT FUNDS';
+    } else {
+      return 'INVALID BET';
+    }
+  }
+  
+  if (state.phase === CrashGamePhase.Running) {
+    return 'GAME ACTIVE';
+  }
+  
+  if (state.phase === CrashGamePhase.Crashed) {
+    return 'CRASHED';
+  }
+  
+  // Fallback z informacją debug
+  return `WAITING... (Phase: ${state.phase})`;
+};
 
   const getButtonColor = () => {
-    if (!crashGameStore.connected) return 'gray';
-    if (crashGameStore.canWithdraw) return 'green';
-    if (crashGameStore.canPlaceBet) return 'orange';
+    const state = useCrashGameStore.getState();
+    if (!connected || !isAuthenticated) return 'gray';
+    if (canWithdraw(state)) return 'green';
+    if (canPlaceBet(state)) return 'orange';
     return 'gray';
   };
 
   const getButtonAction = () => {
-    if (crashGameStore.canWithdraw) return handleWithdraw;
-    if (crashGameStore.canPlaceBet) return handlePlaceBet;
+    if (!isAuthenticated) return () => { };
+    const state = useCrashGameStore.getState();
+    if (canWithdraw(state)) return handleWithdraw;
+    if (canPlaceBet(state)) return handlePlaceBet;
     return () => { };
   };
+
+  const currentUserBet = getCurrentUserBet(useCrashGameStore.getState());
+  const hasActiveBet = getHasActiveBet(useCrashGameStore.getState());
+  const formattedMultiplier = getFormattedMultiplier(useCrashGameStore.getState());
+  const formattedTimeRemaining = getFormattedTimeRemaining(useCrashGameStore.getState());
+  const canPlaceBetState = canPlaceBet(useCrashGameStore.getState());
+  const canWithdrawState = canWithdraw(useCrashGameStore.getState());
+
+  const currentPayout = currentUserBet && phase === CrashGamePhase.Running
+    ? (parseFloat(currentUserBet.betAmount.toString()) * multiplier).toFixed(2)
+    : null;
+
+  if (!isAuthenticated) {
+    return (
+      <div
+        className="float-right w-2/5 h-110 border text-white p-2 flex items-center justify-center"
+        style={{
+          backgroundColor: 'rgb(24, 26, 30)',
+          borderColor: 'rgb(41, 36, 36)'
+        }}
+      >
+        <div className="text-center">
+          <div className="text-xl mb-4">Login Required</div>
+          <div className="text-sm text-gray-400">
+            Please log in to place bets
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -71,37 +193,50 @@ const Betting = observer(() => {
         borderColor: 'rgb(41, 36, 36)'
       }}
     >
-
-      {/* Connection Status */}
       <div className="text-xs mt-1">
-        Status: {crashGameStore.connected ?
+        Status: {connected ?
           <span className="text-green-400">Connected</span> :
           <span className="text-red-400">Disconnected</span>
         }
       </div>
-
-      {/* Timer */}
       <div className="text-xs mt-1">
-        {crashGameStore.bettingOpen ?
-          `Betting ends in: ${crashGameStore.formattedTimeRemaining}` :
-          `Game active: ${crashGameStore.formattedMultiplier}`
+        Balance: {balance}
+      </div>
+      <div className="text-xs mt-1">
+        {phase === CrashGamePhase.Betting ?
+          `Betting ends in: ${formattedTimeRemaining}` :
+          `Game active: ${formattedMultiplier}`
         }
       </div>
-
-      {/* Current User Bet Info */}
-      {crashGameStore.currentUserBet && (
+      <div className="text-xs mt-1 bg-blue-900 p-1 rounded">
+        <div>User ID: {user?.id || 'N/A'}</div>
+        <div>Username: {user?.nickName || 'N/A'}</div>
+        <div>Token: {token ? 'YES' : 'NO'}</div>
+        <div>Authenticated: {isAuthenticated ? 'YES' : 'NO'}</div>
+        <div>Total bets: {Object.keys(bets).length}</div>
+        <div>Bet IDs: {Object.keys(bets).join(', ')}</div>
+        <div>Has bet: {hasActiveBet ? 'YES' : 'NO'}</div>
+        <div>Can withdraw: {canWithdrawState ? 'YES' : 'NO'}</div>
+        <div>Current bet: {currentUserBet ? currentUserBet.betAmount : 'NONE'}</div>
+        <div>Phase: {phase}</div>
+      </div>
+      {currentUserBet && (
         <div className="text-xs mt-1 p-1 bg-gray-700 rounded">
-          <div>Your bet: {crashGameStore.currentUserBet.betAmount}</div>
-          {crashGameStore.currentUserBet.inGame.withdrew && (
+          <div>Your bet: {currentUserBet.betAmount}</div>
+          {currentUserBet.inGame?.withdrew && (
             <div className="text-green-400">
-              Cashed out at {crashGameStore.currentUserBet.inGame.withdrawMultiplier.toFixed(2)}x
+              Cashed out at {currentUserBet.inGame.withdrawMultiplier?.toFixed(2)}x
               <br />
-              Profit: {crashGameStore.currentUserBet.inGame.withdrawProfit.toFixed(2)}
+              Profit: {currentUserBet.inGame.withdrawProfit?.toFixed(2)}
+            </div>
+          )}
+          {phase === CrashGamePhase.Running && !currentUserBet.inGame?.withdrew && (
+            <div className="text-blue-400">
+              Current value: {currentPayout}
             </div>
           )}
         </div>
       )}
-
       <div>
         <label htmlFor="bet" className="block mt-2">Bet (max 500.000)</label>
         <input
@@ -111,10 +246,9 @@ const Betting = observer(() => {
           onChange={(e) => setBetInput(e.target.value)}
           className="h-8 w-full bg-white text-black p-2 rounded"
           placeholder="Amount"
-          disabled={!crashGameStore.bettingOpen || crashGameStore.hasActiveBet}
+          disabled={phase !== CrashGamePhase.Betting || hasActiveBet || !isAuthenticated}
         />
       </div>
-
       <div>
         <label htmlFor="autoCashOut" className="block mt-2">Auto Cash Out</label>
         <input
@@ -126,20 +260,17 @@ const Betting = observer(() => {
           placeholder="Amount"
           step="0.01"
           min="1.01"
+          disabled={!isAuthenticated}
         />
       </div>
-
-      {/* Error Display */}
-      {crashGameStore.error && (
+      {error && (
         <div className="text-red-400 text-xs mt-2">
-          {crashGameStore.error}
+          {error}
         </div>
       )}
-
       <button
         onClick={getButtonAction()}
-        disabled={crashGameStore.loading || !crashGameStore.connected ||
-          (!crashGameStore.canPlaceBet && !crashGameStore.canWithdraw)}
+        disabled={loading || !connected || !isAuthenticated || (!canPlaceBetState && !canWithdrawState)}
         className="w-full mt-2 rounded-2xl text-3xl text-white cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         style={{
           height: '200px',
@@ -148,8 +279,16 @@ const Betting = observer(() => {
       >
         {getButtonText()}
       </button>
+      {canWithdrawState && currentUserBet && phase === CrashGamePhase.Running && currentPayout && isAuthenticated && (
+        <button
+          onClick={handleWithdraw}
+          className="w-full mt-4 rounded-xl text-xl font-bold bg-yellow-500 hover:bg-yellow-600 text-black py-3 transition"
+        >
+          CASH OUT: {currentPayout}
+        </button>
+      )}
     </div>
   );
-});
+};
 
 export default Betting;

@@ -1,25 +1,26 @@
 'use client'
-import crashGameStore from '@/app/stores/CrashGameStore';
+import useCrashGameStore, { getFormattedBalance } from '@/app/stores/CrashGameStore';
 import useAuthStore from '@/app/stores/AuthStore';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 const Navbar = () => {
   const router = useRouter();
-  const { user, isAuthenticated, logout, initializeAuth } = useAuthStore();
+  const {
+    connected,
+    balance,
+  } = useCrashGameStore();
+  const {
+    user,
+    isAuthenticated,
+    logout,
+    initializeAuth
+  } = useAuthStore();
 
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
 
-  useEffect(() => {
-    if (user && !crashGameStore.connected) {
-      crashGameStore.connect();
-    }
-    return () => {
-      crashGameStore.disconnect();
-    };
-  }, [user]);
 
   return (
     <div className="w-full h-10 text-white text-center text-3xl flex items-center" style={{ backgroundColor: 'rgb(41, 44, 53)' }}>
@@ -29,9 +30,9 @@ const Navbar = () => {
       <div className="ml-auto mr-4 text-xl flex items-center">
         Coins:
         <span className="ml-2 text-yellow-400 font-bold">
-          {crashGameStore.connected ? crashGameStore.formattedBalance : '0.00'}
+          {balance}
         </span>
-        {!crashGameStore.connected && (
+        {!connected && (
           <span className="ml-2 text-red-400 text-sm">
             (Offline)
           </span>
