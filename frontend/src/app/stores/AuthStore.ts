@@ -44,10 +44,12 @@ const useAuthStore = create<AuthState & AuthActions>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      isLoading: false,
+      loading: false, // Zmieniono z isLoading na loading
       error: null,
       
       initialize: () => {
+        console.log('Initializing AuthStore...');
+        
         // Sprawdź czy mamy token w store
         const currentState = get();
         let token = currentState.token;
@@ -58,12 +60,14 @@ const useAuthStore = create<AuthState & AuthActions>()(
         }
         
         if (token && currentState.user) {
+          console.log('Found token and user data, setting as authenticated');
           set({ 
             token, 
             isAuthenticated: true,
             user: currentState.user 
           });
         } else if (!token) {
+          console.log('No token found, logging out');
           // Jeśli nie ma tokenu, wyloguj użytkownika
           set({ 
             user: null, 
@@ -74,13 +78,16 @@ const useAuthStore = create<AuthState & AuthActions>()(
       },
 
       register: async (userData: Record<string, any>) => {
-        set({ isLoading: true, error: null });
+        set({ loading: true, error: null });
         try {
+          console.log('Attempting to register user:', userData.email);
+          
           const response = await axios.post(apiUrl + '/api/Auth/register', userData, {
             headers: { 'Content-Type': 'application/json' },
           });
           
           const data = response.data;
+          console.log('Register response:', data);
           
           if (data.token && data.user) {
             setCookie('authToken', data.token);
@@ -88,29 +95,33 @@ const useAuthStore = create<AuthState & AuthActions>()(
               token: data.token, 
               user: data.user, 
               isAuthenticated: true, 
-              isLoading: false 
+              loading: false 
             });
             return { success: true, data };
           } else {
-            set({ isLoading: false, error: 'Nieprawidłowa odpowiedź serwera' });
+            set({ loading: false, error: 'Nieprawidłowa odpowiedź serwera' });
             return { success: false, error: 'Nieprawidłowa odpowiedź serwera' };
           }
         } catch (error: any) {
+          console.error('Registration error:', error);
           const message = error.response?.data?.message || error.message || 'Rejestracja nie powiodła się';
-          set({ error: message, isLoading: false });
+          set({ error: message, loading: false });
           return { success: false, error: message };
         }
       },
 
       login: async (credentials: Record<string, any>) => {
-        set({ isLoading: true, error: null });
+        set({ loading: true, error: null });
         
         try {
+          console.log('Attempting to login user:', credentials.email);
+          
           const response = await axios.post(apiUrl + '/api/Auth/login', credentials, {
             headers: { 'Content-Type': 'application/json' }
           });
           
           const data = response.data;
+          console.log('Login response:', data);
           
           if (data.token && data.user) {
             setCookie('authToken', data.token);
@@ -119,22 +130,25 @@ const useAuthStore = create<AuthState & AuthActions>()(
               token: data.token, 
               user: data.user, 
               isAuthenticated: true, 
-              isLoading: false 
+              loading: false 
             });
             
+            console.log('Login successful, user authenticated');
             return { success: true, data };
           } else {
-            set({ isLoading: false, error: 'Nieprawidłowa odpowiedź serwera' });
+            set({ loading: false, error: 'Nieprawidłowa odpowiedź serwera' });
             return { success: false, error: 'Nieprawidłowa odpowiedź serwera' };
           }
         } catch (error: any) {
+          console.error('Login error:', error);
           const message = error.response?.data?.message || error.message || 'Logowanie nie powiodło się';
-          set({ error: message, isLoading: false });
+          set({ error: message, loading: false });
           return { success: false, error: message };
         }
       },
 
       logout: () => {
+        console.log('Logging out user');
         deleteCookie('authToken');
         set({ 
           user: null, 
@@ -142,6 +156,11 @@ const useAuthStore = create<AuthState & AuthActions>()(
           isAuthenticated: false, 
           error: null 
         });
+        
+        // Przekieruj do strony głównej
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
       },
 
       clearError: () => set({ error: null }),
@@ -152,7 +171,7 @@ const useAuthStore = create<AuthState & AuthActions>()(
       name: 'auth-storage',
       partialize: (state) => ({ 
         user: state.user,
-        token: state.token, // Dodajemy token do persystowania
+        token: state.token,
         isAuthenticated: state.isAuthenticated 
       }),
     }

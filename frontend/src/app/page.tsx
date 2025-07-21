@@ -9,32 +9,6 @@ import RegisterForm from '@/app/components/RegisterForm';
 const HomePage = observer(() => {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
 
-  if (authStore.isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-[#181a1e] flex flex-col justify-center items-center">
-        <div className="w-full max-w-xl">
-          <div className="bg-[#292c35] p-10 rounded-2xl shadow-lg min-h-[400px] flex flex-col justify-center">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-white mb-4">
-                Welcome, {authStore.user?.nickName}!
-              </h2>
-              <p className="text-gray-400 mb-6">
-                You are successfully logged in.
-              </p>
-              <button
-                onClick={() => authStore.logout()}
-                className="w-full py-2 px-4 rounded-md shadow text-sm font-medium text-white bg-[#d32f2f] hover:bg-[#b71c1c] focus:outline-none focus:ring-2 focus:ring-[#d32f2f]"
-                style={{ fontSize: 16, fontWeight: 600 }}
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-[#181a1e] flex flex-col justify-center items-center">
       <div className="w-full max-w-xl">

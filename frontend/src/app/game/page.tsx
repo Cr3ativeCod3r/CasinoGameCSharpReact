@@ -1,4 +1,3 @@
-// app/game/page.tsx
 'use client'
 
 import { useState } from 'react'
@@ -11,47 +10,52 @@ import PlayerInGame from '@/app/components/PlayerInGame'
 
 export default function GamePage() {
   const [activeView, setActiveView] = useState<'chat' | 'history'>('chat')
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
-  
+
   return (
-    <div className="min-h-screen font-sans" style={{ backgroundColor: 'rgb(24, 26, 30)' }}>
+    <div className="font-sans min-h-screen" style={{ backgroundColor: 'rgb(24, 26, 30)' }}>
       <Navbar />
-      
-      <div className="flex">
+      <div
+        className="flex w-full"
+        style={{
+          height: '95vh',
+          minHeight: '95vh',
+          maxHeight: '95vh'
+        }}
+      >
         {/* Left side */}
-        <div 
-          className="w-3/5 min-h-screen border-b"
-          style={{ 
+        <div
+          className="w-3/5 border-b flex flex-col"
+          style={{
             backgroundColor: 'rgb(24, 26, 30)',
-            borderColor: 'rgb(41, 36, 36)'
+            borderColor: 'rgb(41, 36, 36)',
+            height: '100%'
           }}
         >
-          <div className="flex">
+          <div className="flex flex-1 min-h-0">
             <Wykres />
             <Betting />
           </div>
-          
           {/* Bottom section */}
-          <div 
-            className="clear-both h-80 w-full border flex"
-            style={{ 
+          <div
+            className="w-1/2 border flex flex-1 min-h-0"
+            style={{
               backgroundColor: 'rgb(24, 26, 30)',
-              borderColor: 'rgb(41, 36, 36)'
+              borderColor: 'rgb(41, 36, 36)',
+              height: '35%'
             }}
           >
             {/* Navigation tabs */}
-            <div 
+            <div
               className="w-10 mr-1 flex flex-col"
-              style={{ 
+              style={{
                 backgroundColor: 'rgb(41, 44, 53)',
-                height: '300px'
+                height: '100%'
               }}
             >
-              <div 
-                className={`h-40 w-full text-orange-500 cursor-pointer flex items-center justify-center transform rotate-180 ${
-                  activeView === 'chat' ? 'bg-opacity-50' : ''
-                }`}
-                style={{ 
+              <div
+                className={`h-1/2 w-full text-orange-500 cursor-pointer flex items-center justify-center transform rotate-180 ${activeView === 'chat' ? 'bg-opacity-50' : ''
+                  }`}
+                style={{
                   writingMode: 'vertical-rl',
                   backgroundColor: activeView === 'chat' ? 'rgb(26, 31, 31)' : ''
                 }}
@@ -59,11 +63,10 @@ export default function GamePage() {
               >
                 Chat
               </div>
-              <div 
-                className={`h-40 w-full text-orange-500 cursor-pointer flex items-center justify-center transform rotate-180 ${
-                  activeView === 'history' ? 'bg-opacity-50' : ''
-                }`}
-                style={{ 
+              <div
+                className={`h-1/2 w-full text-orange-500 cursor-pointer flex items-center justify-center transform rotate-180 ${activeView === 'history' ? 'bg-opacity-50' : ''
+                  }`}
+                style={{
                   writingMode: 'vertical-rl',
                   backgroundColor: activeView === 'history' ? 'rgb(26, 31, 31)' : ''
                 }}
@@ -72,20 +75,19 @@ export default function GamePage() {
                 History
               </div>
             </div>
-            
             {/* Content */}
-            <div className="flex-1">
-              {activeView === 'chat' ? <Chat /> : <History />}
+            <div className="flex-1 min-h-0">
+              {activeView === 'chat' ? <Chat style={{ height: '100%' }} /> : <History />}
             </div>
           </div>
         </div>
-        
         {/* Right side */}
-        <div 
-          className="w-2/5 min-h-screen border mt-2"
-          style={{ 
+        <div
+          className="w-2/5 border flex flex-col"
+          style={{
             backgroundColor: 'rgb(24, 26, 30)',
-            borderColor: 'rgb(41, 36, 36)'
+            borderColor: 'rgb(41, 36, 36)',
+            height: '100%'
           }}
         >
           <PlayerInGame />

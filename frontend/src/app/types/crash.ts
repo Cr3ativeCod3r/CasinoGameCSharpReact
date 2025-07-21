@@ -29,6 +29,7 @@ export interface BalanceUpdate {
 
 export interface CrashGameState {
   // Game state
+  phase: CrashGamePhase;
   multiplier: number;
   xChart: number;
   yChart: number;
@@ -60,9 +61,9 @@ export interface CrashGameActions {
   // Balance management
   requestBalance: () => Promise<void>;
   
-  // Game actions
-  placeBet: () => Promise<void>;
-  withdraw: () => Promise<void>;
+  // Game actions - POPRAWIONE z userId jako parametr
+  placeBet: (userId?: string) => Promise<void>;
+  withdraw: (userId?: string) => Promise<void>;
   
   // Event handlers
   handleGameUpdate: (gameUpdate: CrashGameUpdate) => void;
@@ -77,8 +78,8 @@ export interface CrashGameActions {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   
-  // Auto cash out logic
-  checkAutoCashOut: () => void;
+  // Auto cash out logic - POPRAWIONE z userId jako parametr
+  checkAutoCashOut: (userId?: string) => void;
 }
 
 export enum CrashGamePhase {
@@ -86,3 +87,6 @@ export enum CrashGamePhase {
   Running = 'Running',
   Crashed = 'Crashed'
 }
+
+// Import dla SignalR
+import * as signalR from '@microsoft/signalr';

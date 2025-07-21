@@ -3,7 +3,6 @@ import * as signalR from '@microsoft/signalr';
 import useAuthStore from '@/app/stores/AuthStore';
 import axios from 'axios';
 
-// Typy dla TypeScript
 interface ChatMessage {
   id?: string;
   userId: string;
@@ -28,7 +27,6 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
 
   const API_URL = 'http://localhost:5000';
 
-  // Inicjalizuj store na początku
   useEffect(() => {
     if (!isInitialized) {
       initialize();
@@ -36,34 +34,27 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
     }
   }, [initialize, isInitialized]);
 
-  // Przewiń do dołu
   const scrollToBottom = (): void => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Pobierz stare wiadomości z API
   const fetchOldMessages = async (): Promise<void> => {
     try {
       const response = await axios.get(`${API_URL}/api/chat/messages`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       const oldMessages: ChatMessage[] = response.data;
-      setMessages(oldMessages.reverse()); 
+      setMessages(oldMessages.reverse());
     } catch (error) {
-      console.error('Błąd pobierania starych wiadomości:', error);
+      // error handling
     }
   };
 
-  // Inicjalizacja SignalR
   useEffect(() => {
-    // Nie inicjalizuj połączenia jeśli nie ma tokenu lub użytkownika
     if (!isInitialized || !isAuthenticated || !token || !user) {
-      console.log('Brak wymaganych danych do połączenia:', { isInitialized, isAuthenticated, hasToken: !!token, hasUser: !!user });
       return;
     }
-    
-    console.log('Inicjalizacja SignalR dla użytkownika:', user);
-    
+
     const newConnection = new signalR.HubConnectionBuilder()
       .withUrl(`${API_URL}/crashHub`, {
         accessTokenFactory: () => token
@@ -74,75 +65,57 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
 
     setConnection(newConnection);
 
-    // Uruchom połączenie
     newConnection.start()
       .then(() => {
-        console.log('Połączono z SignalR');
         setIsConnected(true);
         fetchOldMessages();
       })
-      .catch((err: Error) => {
-        console.error('Błąd połączenia z SignalR:', err);
+      .catch(() => {
         setIsConnected(false);
       });
 
-    // Obsługa otrzymanych wiadomości
     newConnection.on('ReceiveMessage', (message: ChatMessage) => {
-      console.log('Otrzymano wiadomość:', message);
       setMessages(prevMessages => [...prevMessages, message]);
     });
 
-    // Obsługa błędów
     newConnection.on('Error', (error: string) => {
-      console.error('Błąd z serwera:', error);
       alert(error);
     });
 
-    // Obsługa reconnection
     newConnection.onreconnected(() => {
-      console.log('Ponownie połączono z SignalR');
       setIsConnected(true);
       fetchOldMessages();
     });
 
-    newConnection.onclose((error) => {
-      console.log('Połączenie z SignalR zamknięte:', error);
+    newConnection.onclose(() => {
       setIsConnected(false);
     });
 
-    // Cleanup
     return () => {
-      console.log('Zamykanie połączenia SignalR');
       newConnection.stop();
     };
   }, [isInitialized, isAuthenticated, token, user]);
 
-  // Przewiń do dołu po dodaniu nowej wiadomości
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  // Wyślij wiadomość
   const sendMessage = async (): Promise<void> => {
     if (inputMessage.trim() && connection && isConnected) {
       try {
-        console.log('Wysyłanie wiadomości:', inputMessage);
         await connection.invoke('SendMessage', inputMessage.trim());
         setInputMessage('');
-      } catch (error) {
-        console.error('Błąd wysyłania wiadomości:', error);
+      } catch {
         alert('Nie udało się wysłać wiadomości');
       }
     }
   };
 
-  // Obsługa formularza
-  const handleSubmit = (e: React.FormEvent): void => {
+  const handleSubmit = (e: React.FormEvent | React.KeyboardEvent): void => {
     e.preventDefault();
     sendMessage();
   };
 
-  // Sprawdź czy inicjalizacja się zakończyła
   if (!isInitialized) {
     return (
       <div className={`flex-1 ${className || ''}`} style={style}>
@@ -156,7 +129,6 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
     );
   }
 
-  // Sprawdź czy użytkownik jest zalogowany
   if (!isAuthenticated || !user) {
     return (
       <div className={`flex-1 ${className || ''}`} style={style}>
@@ -172,7 +144,6 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
 
   return (
     <div className={`flex-1 ${className || ''}`} style={style}>
-      {/* Status połączenia */}
       <div className="mb-2">
         <span className={`text-xs px-2 py-1 rounded ${isConnected ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
           {isConnected ? 'Połączono' : 'Rozłączono'}
@@ -184,7 +155,6 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
         )}
       </div>
 
-      {/* Okno chatu */}
       <div
         className="h-64 border border-black overflow-y-scroll text-white p-2"
         style={{ backgroundColor: 'rgb(24, 26, 30)' }}
@@ -210,16 +180,17 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
       </div>
 
       {/* Formularz wysyłania wiadomości */}
-      <div className="mt-3">
+      <form className="mt-3 flex" onSubmit={handleSubmit}>
         <input
           type="text"
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSubmit(e)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) handleSubmit(e);
+          }}
           placeholder={isConnected ? "Napisz wiadomość..." : "Rozłączono..."}
-          className="p-2 text-black"
+          className="p-2 text-black flex-1"
           style={{
-            width: '92%',
             backgroundColor: '#bbb1b1'
           }}
           disabled={!isConnected}
@@ -227,13 +198,12 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
         />
         <button
           type="submit"
-          onClick={handleSubmit}
           disabled={!isConnected || !inputMessage.trim()}
           className="ml-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           Wyślij
         </button>
-      </div>
+      </form>
     </div>
   );
 };

@@ -19,5 +19,13 @@ export interface User {
   id: string;
   email: string;
   nickName: string;
+  balance?: number; // Dodajemy balance do użytkownika
 }
 
+export interface AuthState {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  loading: boolean; // Zmienione z isLoading na loading dla spójności
+  error: string | null;
+}

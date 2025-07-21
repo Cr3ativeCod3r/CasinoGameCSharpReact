@@ -61,7 +61,9 @@ namespace backend.Services
                 try
                 {
                     _logger.LogDebug("Sending GameUpdate to all clients");
+                    // Wysyłamy oba warianty nazw - z małymi i wielkimi literami
                     await _hubContext.Clients.All.SendAsync("GameUpdate", gameUpdate);
+                    await _hubContext.Clients.All.SendAsync("gameupdate", gameUpdate);
                 }
                 catch (Exception ex)
                 {
@@ -75,6 +77,7 @@ namespace backend.Services
                 {
                     _logger.LogDebug("Sending GameCrashed to all clients");
                     await _hubContext.Clients.All.SendAsync("GameCrashed");
+                    await _hubContext.Clients.All.SendAsync("gamecrashed");
                 }
                 catch (Exception ex)
                 {
@@ -95,6 +98,7 @@ namespace backend.Services
                     
                     _logger.LogInformation($"Sending balance update to user {userId}: {balance}");
                     await _hubContext.Clients.User(userId).SendAsync("BalanceUpdate", balanceData);
+                    await _hubContext.Clients.User(userId).SendAsync("balanceupdate", balanceData);
                 }
                 catch (Exception ex)
                 {
@@ -119,35 +123,54 @@ namespace backend.Services
             }
         }
 
-        // Change to public to match interface
         public void StartBettingTimer()
         {
             _bettingTimer?.Dispose();
-            _bettingTimer = new System.Timers.Timer(10); // 10ms = 0.01s
+            _bettingTimer = new System.Timers.Timer(100); // Zwiększone z 10ms na 100ms dla stabilności
             _bettingTimer.Elapsed += async (sender, e) =>
             {
+                bool shouldStartGame = false;
+                
                 lock (_lock)
                 {
-                    if (_timer.Countdown() == "done" && _bettingOpen)
+                    if (_bettingOpen && _timer.Countdown() == "done")
                     {
                         _bettingOpen = false;
+                        shouldStartGame = true;
                         _bettingTimer?.Stop();
                     }
                 }
 
-                if (!_bettingOpen && _game == null)
+                if (shouldStartGame && _game == null)
                 {
                     await StartGameLoopAsync();
                 }
 
-                // Wyślij aktualizację do klientów
-                await OnGameUpdate(await GetGameStateAsync());
+                // Wyślij aktualizację do klientów tylko jeśli jest potrzebna
+                try
+                {
+                    await OnGameUpdate(await GetGameStateAsync());
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error sending game update during betting phase");
+                }
             };
             _bettingTimer.Start();
+            _logger.LogInformation("Betting timer started");
         }
 
         public async Task<bool> PlaceBetAsync(string playerID, string playerName, decimal betAmount)
         {
+            _logger.LogInformation($"PlaceBetAsync called for {playerName} with amount {betAmount}");
+            
+            // Walidacja danych wejściowych
+            if (string.IsNullOrEmpty(playerID) || string.IsNullOrEmpty(playerName) || betAmount <= 0)
+            {
+                _logger.LogWarning($"Invalid bet parameters: playerID={playerID}, playerName={playerName}, betAmount={betAmount}");
+                return false;
+            }
+
             lock (_lock)
             {
                 if (!_bettingOpen || _bets.ContainsKey(playerID) || _timer.TimeRemaining <= 0)
@@ -157,45 +180,61 @@ namespace backend.Services
                 }
             }
 
-            // Sprawdź saldo gracza
-            var user = await _userManager.FindByIdAsync(playerID);
-            if (user == null)
+            try
             {
-                _logger.LogWarning($"User not found: {playerID}");
-                return false;
-            }
-            
-            if (user.Balance < betAmount)
-            {
-                _logger.LogWarning($"Insufficient balance for {playerName}: has {user.Balance}, needs {betAmount}");
-                return false;
-            }
-
-            // Odejmij kwotę od salda
-            user.Balance -= betAmount;
-            await _userManager.UpdateAsync(user);
-
-            lock (_lock)
-            {
-                _bets[playerID] = new CrashBet
+                // Sprawdź saldo gracza
+                var user = await _userManager.FindByIdAsync(playerID);
+                if (user == null)
                 {
-                    PlayerID = playerID,
-                    PlayerName = playerName,
-                    BetAmount = betAmount,
-                    InGame = new CrashInGameData()
-                };
-            }
+                    _logger.LogWarning($"User not found: {playerID}");
+                    return false;
+                }
+                
+                if (user.Balance < betAmount)
+                {
+                    _logger.LogWarning($"Insufficient balance for {playerName}: has {user.Balance}, needs {betAmount}");
+                    return false;
+                }
 
-            _logger.LogInformation($"Player {playerName} placed bet: {betAmount}, new balance: {user.Balance}");
-            
-            // Wyślij balance update
-            await OnBalanceUpdate(playerID, user.Balance);
-            
-            return true;
+                // Odejmij kwotę od salda
+                user.Balance -= betAmount;
+                await _userManager.UpdateAsync(user);
+
+                lock (_lock)
+                {
+                    _bets[playerID] = new CrashBet
+                    {
+                        PlayerID = playerID,
+                        PlayerName = playerName,
+                        BetAmount = betAmount,
+                        InGame = new CrashInGameData()
+                    };
+                }
+
+                _logger.LogInformation($"Player {playerName} placed bet: {betAmount}, new balance: {user.Balance}");
+                
+                // Wyślij balance update
+                await OnBalanceUpdate(playerID, user.Balance);
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error placing bet for player {PlayerName}", playerName);
+                return false;
+            }
         }
 
         public async Task<bool> WithdrawAsync(string playerID)
         {
+            _logger.LogInformation($"WithdrawAsync called for player {playerID}");
+            
+            if (string.IsNullOrEmpty(playerID))
+            {
+                _logger.LogWarning("WithdrawAsync called with empty playerID");
+                return false;
+            }
+
             CrashBet? bet;
             double currentMultiplier;
             bool gameActive;
@@ -207,6 +246,7 @@ namespace backend.Services
                     _game == null || 
                     !_game.Active)
                 {
+                    _logger.LogWarning($"Cannot withdraw for player {playerID}: bet exists={_bets.ContainsKey(playerID)}, already withdrew={bet?.InGame.Withdrew}, game active={_game?.Active}");
                     return false;
                 }
 
@@ -215,41 +255,64 @@ namespace backend.Services
             }
 
             if (!gameActive)
+            {
+                _logger.LogWarning($"Cannot withdraw for player {playerID}: game not active");
                 return false;
-
-            var betAmount = bet.BetAmount;
-            var profit = (double)betAmount * currentMultiplier;
-
-            lock (_lock)
-            {
-                bet.InGame.Withdrew = true;
-                bet.InGame.WithdrawMultiplier = currentMultiplier;
-                bet.InGame.WithdrawProfit = profit;
             }
 
-            // Dodaj zysk do salda gracza
-            var user = await _userManager.FindByIdAsync(playerID);
-            if (user != null)
+            try
             {
-                user.Balance += (decimal)profit;
-                await _userManager.UpdateAsync(user);
-                
-                _logger.LogInformation($"Player {bet.PlayerName} withdrew at {currentMultiplier:F2}x for profit: {profit:F2}, new balance: {user.Balance}");
-                
-                // Wyślij balance update
-                await OnBalanceUpdate(playerID, user.Balance);
-            }
+                var betAmount = bet.BetAmount;
+                var profit = (double)betAmount * currentMultiplier;
 
-            return true;
+                lock (_lock)
+                {
+                    bet.InGame.Withdrew = true;
+                    bet.InGame.WithdrawMultiplier = currentMultiplier;
+                    bet.InGame.WithdrawProfit = profit;
+                }
+
+                // Dodaj zysk do salda gracza
+                var user = await _userManager.FindByIdAsync(playerID);
+                if (user != null)
+                {
+                    user.Balance += (decimal)profit;
+                    await _userManager.UpdateAsync(user);
+                    
+                    _logger.LogInformation($"Player {bet.PlayerName} withdrew at {currentMultiplier:F2}x for profit: {profit:F2}, new balance: {user.Balance}");
+                    
+                    // Wyślij balance update
+                    await OnBalanceUpdate(playerID, user.Balance);
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing withdrawal for player {PlayerID}", playerID);
+                return false;
+            }
         }
 
         public async Task<decimal> GetUserBalanceAsync(string playerID)
         {
-            var user = await _userManager.FindByIdAsync(playerID);
-            return user?.Balance ?? 0m;
+            if (string.IsNullOrEmpty(playerID))
+                return 0m;
+                
+            try
+            {
+                var user = await _userManager.FindByIdAsync(playerID);
+                var balance = user?.Balance ?? 0m;
+                _logger.LogInformation($"GetUserBalanceAsync for {playerID}: {balance}");
+                return balance;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting balance for player {PlayerID}", playerID);
+                return 0m;
+            }
         }
 
-        // Change to public to match interface
         public async Task StartGameLoopAsync()
         {
             var targetCrash = _random.NextDouble() * (10.0 - 1.5) + 1.5;
@@ -269,7 +332,7 @@ namespace backend.Services
             _logger.LogInformation($"Game started with target crash: {targetCrash:F2}x");
 
             _gameTimer?.Dispose();
-            _gameTimer = new System.Timers.Timer(10); // 10ms = 0.01s
+            _gameTimer = new System.Timers.Timer(50); // Zwiększone z 10ms na 50ms dla stabilności
             _gameTimer.Elapsed += async (sender, e) =>
             {
                 bool shouldCrash = false;
@@ -278,9 +341,9 @@ namespace backend.Services
                 {
                     if (_game != null && _game.Active && _game.Multiplier < _game.TargetCrash)
                     {
-                        _game.Multiplier += 0.01;
-                        _game.XChart += 0.01;
-                        _game.YChart += 0.01;
+                        _game.Multiplier += 0.05; // Zwiększone przyrosty dla płynności
+                        _game.XChart += 0.05;
+                        _game.YChart += 0.05;
                         
                         if (_game.Multiplier >= _game.TargetCrash)
                         {
@@ -295,10 +358,18 @@ namespace backend.Services
                 }
                 else
                 {
-                    await OnGameUpdate(await GetGameStateAsync());
+                    try
+                    {
+                        await OnGameUpdate(await GetGameStateAsync());
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error sending game update during game loop");
+                    }
                 }
             };
             _gameTimer.Start();
+            _logger.LogInformation("Game loop started");
         }
 
         private async Task CrashAsync()
@@ -314,18 +385,28 @@ namespace backend.Services
             }
 
             _logger.LogInformation("Game crashed!");
-            await OnGameCrashed();
             
-            // Wyślij informację o crashu
-            await OnGameUpdate(await GetGameStateAsync());
+            try
+            {
+                await OnGameCrashed();
+                
+                // Wyślij ostateczną informację o stanie gry
+                await OnGameUpdate(await GetGameStateAsync());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending crash notifications");
+            }
             
             // Reset gry po krótkim opóźnieniu
-            await Task.Delay(3000);
+            await Task.Delay(5000); // Zwiększone opóźnienie
             await ResetGameAsync();
         }
 
         private async Task ResetGameAsync()
         {
+            _logger.LogInformation("Resetting game...");
+            
             lock (_lock)
             {
                 _bettingOpen = true;
@@ -336,6 +417,16 @@ namespace backend.Services
 
             _logger.LogInformation("Game reset - new betting round started");
             StartBettingTimer();
+            
+            // Wyślij aktualizację o nowej rundzie
+            try
+            {
+                await OnGameUpdate(await GetGameStateAsync());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending game reset update");
+            }
         }
 
         public async Task<CrashGameUpdate> GetGameStateAsync()
@@ -350,10 +441,10 @@ namespace backend.Services
                 betsCopy = new Dictionary<string, CrashBet>(_bets);
                 gameCopy = _game;
                 bettingOpen = _bettingOpen;
-                timeRemaining = _timer.TimeRemaining;
+                timeRemaining = Math.Max(0, _timer.TimeRemaining); // Zapewnij że nie będzie ujemny
             }
 
-            return new CrashGameUpdate
+            var gameUpdate = new CrashGameUpdate
             {
                 Multiplier = gameCopy?.Multiplier ?? 1.0,
                 XChart = gameCopy?.XChart ?? 0.0,
@@ -363,11 +454,14 @@ namespace backend.Services
                 BettingOpen = bettingOpen,
                 GameActive = gameCopy?.Active ?? false
             };
+
+            return gameUpdate;
         }
 
         // Metoda do czyszczenia zasobów
         public void Dispose()
         {
+            _logger.LogInformation("Disposing CrashGameService...");
             _bettingTimer?.Dispose();
             _gameTimer?.Dispose();
         }
