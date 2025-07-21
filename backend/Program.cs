@@ -114,13 +114,13 @@ app.MapControllers();
 
 // Map zunifikowany SignalR hub
 
-app.MapHub<CrashHub>("/crashHub");
+app.MapHub<CrashGameHub>("/crashHub");
 
 // Inicjalizacja crash game service - TYLKO RAZ!
 using (var scope = app.Services.CreateScope())
 {
     var crashGameService = scope.ServiceProvider.GetRequiredService<ICrashGameService>();
-    var crashGameHub = scope.ServiceProvider.GetRequiredService<IHubContext<CrashHub>>();
+    var crashGameHub = scope.ServiceProvider.GetRequiredService<IHubContext<CrashGameHub>>();
 
     // Obsługa eventów z CrashGameService
     crashGameService.OnGameUpdate += async (gameUpdate) =>

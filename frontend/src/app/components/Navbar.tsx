@@ -10,12 +10,12 @@ const Navbar = () => {
     connected,
     balance,
   } = useCrashGameStore();
-  const {
-    user,
-    isAuthenticated,
-    logout,
-    initializeAuth
-  } = useAuthStore();
+ const {
+  user,
+  isAuthenticated,
+  logout,
+  initialize: initializeAuth 
+} = useAuthStore();
 
   useEffect(() => {
     initializeAuth();

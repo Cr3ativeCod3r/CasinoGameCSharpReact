@@ -80,3 +80,9 @@ export interface CrashGameActions {
   // Auto cash out logic
   checkAutoCashOut: () => void;
 }
+
+export enum CrashGamePhase {
+  Betting = 'Betting',
+  Running = 'Running',
+  Crashed = 'Crashed'
+}

@@ -3,6 +3,8 @@ using backend.Models;
 using backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.SignalR;
+using backend.Hubs;
 
 namespace backend.Services
 {
@@ -11,6 +13,7 @@ namespace backend.Services
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly ILogger<CrashGameService> _logger;
+        private readonly IHubContext<CrashGameHub>? _hubContext;
         
         // Globalne zmienne
         private bool _bettingOpen = true;
@@ -28,19 +31,78 @@ namespace backend.Services
 
         public event Func<CrashGameUpdate, Task> OnGameUpdate = delegate { return Task.CompletedTask; };
         public event Func<Task> OnGameCrashed = delegate { return Task.CompletedTask; };
+        public event Func<string, decimal, Task> OnBalanceUpdate = delegate { return Task.CompletedTask; };
 
         public CrashGameService(
             ApplicationDbContext context,
             UserManager<ApplicationUser> userManager,
-            ILogger<CrashGameService> logger)
+            ILogger<CrashGameService> logger,
+            IHubContext<CrashGameHub>? hubContext = null)
         {
             _context = context;
             _userManager = userManager;
             _logger = logger;
+            _hubContext = hubContext;
             _timer = new CrashTimer(INITIAL_TIME);
             
-            // NIE uruchamiamy gry w konstruktorze
-            // Gra będzie uruchomiona tylko raz przez metodę StartGameIfNotStarted
+            // Jeśli mamy HubContext, podłącz eventy bezpośrednio
+            if (_hubContext != null)
+            {
+                ConnectSignalREvents();
+            }
+        }
+
+        private void ConnectSignalREvents()
+        {
+            if (_hubContext == null) return;
+
+            OnGameUpdate += async (gameUpdate) =>
+            {
+                try
+                {
+                    _logger.LogDebug("Sending GameUpdate to all clients");
+                    await _hubContext.Clients.All.SendAsync("GameUpdate", gameUpdate);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error sending GameUpdate to clients");
+                }
+            };
+
+            OnGameCrashed += async () =>
+            {
+                try
+                {
+                    _logger.LogDebug("Sending GameCrashed to all clients");
+                    await _hubContext.Clients.All.SendAsync("GameCrashed");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error sending GameCrashed to clients");
+                }
+            };
+
+            OnBalanceUpdate += async (userId, balance) =>
+            {
+                try
+                {
+                    var balanceData = new 
+                    { 
+                        balance = (double)balance,
+                        Balance = (double)balance,
+                        userId = userId
+                    };
+                    
+                    _logger.LogInformation($"Sending balance update to user {userId}: {balance}");
+                    await _hubContext.Clients.User(userId).SendAsync("BalanceUpdate", balanceData);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error sending BalanceUpdate to user {UserId}", userId);
+                }
+            };
+
+            _logger.LogInformation("SignalR events connected to CrashGameService");
         }
 
         // Publiczna metoda do uruchomienia gry (wywoływana tylko raz)
@@ -90,14 +152,22 @@ namespace backend.Services
             {
                 if (!_bettingOpen || _bets.ContainsKey(playerID) || _timer.TimeRemaining <= 0)
                 {
+                    _logger.LogWarning($"Cannot place bet for {playerName}: bettingOpen={_bettingOpen}, hasExistingBet={_bets.ContainsKey(playerID)}, timeRemaining={_timer.TimeRemaining}");
                     return false;
                 }
             }
 
             // Sprawdź saldo gracza
             var user = await _userManager.FindByIdAsync(playerID);
-            if (user == null || user.Balance < betAmount)
+            if (user == null)
             {
+                _logger.LogWarning($"User not found: {playerID}");
+                return false;
+            }
+            
+            if (user.Balance < betAmount)
+            {
+                _logger.LogWarning($"Insufficient balance for {playerName}: has {user.Balance}, needs {betAmount}");
                 return false;
             }
 
@@ -116,7 +186,11 @@ namespace backend.Services
                 };
             }
 
-            _logger.LogInformation($"Player {playerName} placed bet: {betAmount}");
+            _logger.LogInformation($"Player {playerName} placed bet: {betAmount}, new balance: {user.Balance}");
+            
+            // Wyślij balance update
+            await OnBalanceUpdate(playerID, user.Balance);
+            
             return true;
         }
 
@@ -159,10 +233,20 @@ namespace backend.Services
             {
                 user.Balance += (decimal)profit;
                 await _userManager.UpdateAsync(user);
+                
+                _logger.LogInformation($"Player {bet.PlayerName} withdrew at {currentMultiplier:F2}x for profit: {profit:F2}, new balance: {user.Balance}");
+                
+                // Wyślij balance update
+                await OnBalanceUpdate(playerID, user.Balance);
             }
 
-            _logger.LogInformation($"Player {bet.PlayerName} withdrew at {currentMultiplier:F2}x for profit: {profit:F2}");
             return true;
+        }
+
+        public async Task<decimal> GetUserBalanceAsync(string playerID)
+        {
+            var user = await _userManager.FindByIdAsync(playerID);
+            return user?.Balance ?? 0m;
         }
 
         // Change to public to match interface

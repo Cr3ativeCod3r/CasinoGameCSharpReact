@@ -1,16 +1,17 @@
 using backend.Models;
 
-namespace backend.Services
+public interface ICrashGameService
 {
-    public interface ICrashGameService
-    {
-        Task<bool> PlaceBetAsync(string playerID, string playerName, decimal betAmount);
-        Task<bool> WithdrawAsync(string playerID);
-        Task<CrashGameUpdate> GetGameStateAsync();
-        Task StartGameLoopAsync();
-        void StartBettingTimer();
-        void StartGameIfNotStarted();
-        event Func<CrashGameUpdate, Task> OnGameUpdate;
-        event Func<Task> OnGameCrashed;
-    }
+    event Func<CrashGameUpdate, Task> OnGameUpdate;
+    event Func<Task> OnGameCrashed;
+    event Func<string, decimal, Task> OnBalanceUpdate; // DODANE
+
+    void StartGameIfNotStarted();
+    void StartBettingTimer();
+    Task StartGameLoopAsync();
+    Task<bool> PlaceBetAsync(string playerID, string playerName, decimal betAmount);
+    Task<bool> WithdrawAsync(string playerID);
+    Task<decimal> GetUserBalanceAsync(string playerID); // DODANE
+    Task<CrashGameUpdate> GetGameStateAsync();
+    void Dispose();
 }

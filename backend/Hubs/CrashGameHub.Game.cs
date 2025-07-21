@@ -27,6 +27,28 @@ namespace backend.Hubs
             _logger = logger;
         }
 
+        // DODANA METODA GetBalance
+        public async Task GetBalance()
+        {
+            var user = await _userManager.GetUserAsync(Context.User);
+            if (user == null)
+            {
+                await Clients.Caller.SendAsync("Error", "User not found");
+                return;
+            }
+
+            try
+            {
+                _logger.LogInformation($"Sending balance to user {user.UserName}: {user.Balance}");
+                await Clients.Caller.SendAsync("BalanceUpdate", new { balance = user.Balance });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting balance for user {UserId}", user.Id);
+                await Clients.Caller.SendAsync("Error", "Error getting balance");
+            }
+        }
+
         public async Task PlaceBet(PlaceBetRequest request)
         {
             var user = await _userManager.GetUserAsync(Context.User);
@@ -43,6 +65,8 @@ namespace backend.Hubs
                 if (success)
                 {
                     await Clients.Caller.SendAsync("BetPlaced", new { success = true, amount = request.BetAmount });
+                    // Po pomyślnym postawieniu zakładu, wyślij zaktualizowany balance
+                    await GetBalance();
                 }
                 else
                 {
@@ -72,6 +96,8 @@ namespace backend.Hubs
                 if (success)
                 {
                     await Clients.Caller.SendAsync("WithdrawSuccess", new { success = true });
+                    // Po pomyślnej wypłacie, wyślij zaktualizowany balance
+                    await GetBalance();
                 }
                 else
                 {
@@ -96,6 +122,7 @@ namespace backend.Hubs
                 {
                     var gameState = await _crashGameService.GetGameStateAsync();
                     await Clients.Caller.SendAsync("GameUpdate", gameState);
+                    await GetBalance();
                 }
                 catch (Exception ex)
                 {

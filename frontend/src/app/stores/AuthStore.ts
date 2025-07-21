@@ -1,132 +1,162 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import axios from 'axios';
-import { cookieUtils } from '@/app/utils/cookies';
+import { User, AuthState } from '@/app/types/auth';
 
-// --- Interfaces & Types ---
+const apiUrl = "http://localhost:5000";
 
-export interface User {
-  id: string;
-  email: string;
-  nickName: string;
-  token?: string;
-}
-
-export interface RegisterDto {
-  nickName: string;
-  email: string;
-  password: string;
-}
-
-export interface LoginDto {
-  email: string;
-  password: string;
-}
-
-export interface AuthResponse {
-  success: boolean;
-  message: string;
-  data?: any;
-}
-
-interface AuthState {
-  user: User | null;
-  loading: boolean;
-  error: string | null;
-  url: string;
-}
-
-interface AuthActions {
-  setLoading: (loading: boolean) => void;
-  setError: (error: string | null) => void;
-  setUser: (user: User | null) => void;
-  register: (data: RegisterDto) => Promise<AuthResponse>;
-  login: (data: LoginDto) => Promise<AuthResponse>;
-  logout: () => void;
-  initializeAuth: () => void;
-}
-
-type AuthStore = AuthState & AuthActions & {
-  isAuthenticated: boolean;
+const setCookie = (name: string, value: string, days = 7) => {
+  const expires = new Date();
+  expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;Secure;SameSite=Lax`;
 };
 
-
-const useAuthStore = create<AuthStore>((set, get) => ({
-  user: null,
-  loading: false,
-  error: null,
-  url: "http://localhost:5000",
-
-  get isAuthenticated() {
-    return !!get().user;
-  },
-
-  setLoading: (loading: boolean) => set({ loading }),
+const getCookie = (name: string): string | null => {
+  if (typeof document === 'undefined') return null;
   
-  setError: (error: string | null) => set({ error }),
-  
-  setUser: (user: User | null) => set({ user }),
-
-  initializeAuth: () => {
-    const savedUser = cookieUtils.getUser();
-    if (savedUser) {
-      set({ user: savedUser });
-    }
-  },
-
-  register: async (data: RegisterDto): Promise<AuthResponse> => {
-    set({ loading: true, error: null });
-    try {
-      const response = await axios.post(get().url + '/api/Auth/register', data);
-      set({ loading: false });
-      return {
-        success: true,
-        message: 'Registration successful',
-        data: response.data
-      };
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Registration failed';
-      set({ loading: false, error: errorMessage });
-      return {
-        success: false,
-        message: errorMessage
-      };
-    }
-  },
-
-  login: async (data: LoginDto): Promise<AuthResponse> => {
-    set({ loading: true, error: null });
-    try {
-      const response = await axios.post<User>(get().url + '/api/Auth/login', data);
-      
-      if (response.data && response.data.token) {
-        const userData = response.data;
-        
-        cookieUtils.setToken(userData.token);
-        cookieUtils.setUser(userData);
-        set({ user: userData, loading: false, error: null });
-
-        return {
-          success: true,
-          message: 'Login successful',
-          data: userData
-        };
-      } else {
-        throw new Error('Invalid response from server: token missing.');
-      }
-    } catch (error: any) {
-      const errorMessage = error.response?.data?.message || error.message || 'Login failed';
-      set({ loading: false, error: errorMessage });
-      return {
-        success: false,
-        message: errorMessage
-      };
-    }
-  },
-
-  logout: () => {
-    cookieUtils.clearAuth();
-    set({ user: null, error: null });
+  const nameEQ = name + "=";
+  const ca = document.cookie.split(';');
+  for (let i = 0; i < ca.length; i++) {
+    let c = ca[i];
+    while (c.charAt(0) === ' ') c = c.substring(1, c.length);
+    if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
   }
-}));
+  return null;
+};
+
+const deleteCookie = (name: string) => {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
+};
+
+export interface AuthActions {
+  initialize: () => void;
+  register: (userData: Record<string, any>) => Promise<{ success: boolean; data?: any; error?: string }>;
+  login: (credentials: Record<string, any>) => Promise<{ success: boolean; data?: any; error?: string }>;
+  logout: () => void;
+  clearError: () => void;
+  updateUser: (userData: User) => void;
+}
+
+const useAuthStore = create<AuthState & AuthActions>()(
+  persist(
+    (set, get) => ({
+      user: null,
+      token: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+      
+      initialize: () => {
+        // Sprawdź czy mamy token w store
+        const currentState = get();
+        let token = currentState.token;
+        
+        // Jeśli nie ma tokenu w store, sprawdź ciasteczko
+        if (!token) {
+          token = getCookie('authToken');
+        }
+        
+        if (token && currentState.user) {
+          set({ 
+            token, 
+            isAuthenticated: true,
+            user: currentState.user 
+          });
+        } else if (!token) {
+          // Jeśli nie ma tokenu, wyloguj użytkownika
+          set({ 
+            user: null, 
+            token: null, 
+            isAuthenticated: false 
+          });
+        }
+      },
+
+      register: async (userData: Record<string, any>) => {
+        set({ isLoading: true, error: null });
+        try {
+          const response = await axios.post(apiUrl + '/api/Auth/register', userData, {
+            headers: { 'Content-Type': 'application/json' },
+          });
+          
+          const data = response.data;
+          
+          if (data.token && data.user) {
+            setCookie('authToken', data.token);
+            set({ 
+              token: data.token, 
+              user: data.user, 
+              isAuthenticated: true, 
+              isLoading: false 
+            });
+            return { success: true, data };
+          } else {
+            set({ isLoading: false, error: 'Nieprawidłowa odpowiedź serwera' });
+            return { success: false, error: 'Nieprawidłowa odpowiedź serwera' };
+          }
+        } catch (error: any) {
+          const message = error.response?.data?.message || error.message || 'Rejestracja nie powiodła się';
+          set({ error: message, isLoading: false });
+          return { success: false, error: message };
+        }
+      },
+
+      login: async (credentials: Record<string, any>) => {
+        set({ isLoading: true, error: null });
+        
+        try {
+          const response = await axios.post(apiUrl + '/api/Auth/login', credentials, {
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+          const data = response.data;
+          
+          if (data.token && data.user) {
+            setCookie('authToken', data.token);
+            
+            set({ 
+              token: data.token, 
+              user: data.user, 
+              isAuthenticated: true, 
+              isLoading: false 
+            });
+            
+            return { success: true, data };
+          } else {
+            set({ isLoading: false, error: 'Nieprawidłowa odpowiedź serwera' });
+            return { success: false, error: 'Nieprawidłowa odpowiedź serwera' };
+          }
+        } catch (error: any) {
+          const message = error.response?.data?.message || error.message || 'Logowanie nie powiodło się';
+          set({ error: message, isLoading: false });
+          return { success: false, error: message };
+        }
+      },
+
+      logout: () => {
+        deleteCookie('authToken');
+        set({ 
+          user: null, 
+          token: null, 
+          isAuthenticated: false, 
+          error: null 
+        });
+      },
+
+      clearError: () => set({ error: null }),
+      
+      updateUser: (userData: User) => set({ user: userData }),
+    }),
+    {
+      name: 'auth-storage',
+      partialize: (state) => ({ 
+        user: state.user,
+        token: state.token, // Dodajemy token do persystowania
+        isAuthenticated: state.isAuthenticated 
+      }),
+    }
+  )
+);
 
 export default useAuthStore;
