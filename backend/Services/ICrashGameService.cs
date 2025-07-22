@@ -1,17 +1,27 @@
+// ICrashGameService.cs
 using backend.Models;
 
-public interface ICrashGameService
+namespace backend.Services
 {
-    event Func<CrashGameUpdate, Task> OnGameUpdate;
-    event Func<Task> OnGameCrashed;
-    event Func<string, decimal, Task> OnBalanceUpdate; // DODANE
+    public interface ICrashGameService : IDisposable
+    {
+        // Events
+        event Func<CrashGameUpdate, Task> OnGameUpdate;
+        event Func<Task> OnGameCrashed;
+        event Func<string, decimal, Task> OnBalanceUpdate;
 
-    void StartGameIfNotStarted();
-    void StartBettingTimer();
-    Task StartGameLoopAsync();
-    Task<bool> PlaceBetAsync(string playerID, string playerName, decimal betAmount);
-    Task<bool> WithdrawAsync(string playerID);
-    Task<decimal> GetUserBalanceAsync(string playerID); // DODANE
-    Task<CrashGameUpdate> GetGameStateAsync();
-    void Dispose();
+        // Game control methods
+        void StartGameIfNotStarted();
+        void StartBettingTimer();
+        void StartGameLoop();
+
+        // Player actions
+        Task<bool> PlaceBetAsync(string playerID, string playerName, decimal betAmount);
+        Task<bool> WithdrawAsync(string playerID);
+        Task<decimal> GetUserBalanceAsync(string playerID);
+
+        // Game state
+        CrashGameUpdate GetGameState();
+        
+    }
 }

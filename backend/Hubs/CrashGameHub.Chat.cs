@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.Authorization;
 using backend.Models;
 using System.Security.Claims;
 
 namespace backend.Hubs
 {
-    public partial class CrashGameHub : Hub
+    public partial class CrashGameHub
     {
+        [Authorize]
         public async Task SendMessage(string message)
         {
             var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;

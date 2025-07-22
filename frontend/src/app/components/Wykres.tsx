@@ -1,9 +1,8 @@
 'use client'
-import { observer } from 'mobx-react-lite';
 import { useEffect, useRef } from 'react';
-import crashGameStore from '@/app/stores/CrashGameStore';
+import useCrashGameStore from '@/app/stores/CrashGameStore';
+import { CrashGamePhase } from '@/app/types/crash';
 
-// Configuration object
 const CONFIG = {
   width: 500,
   height: 400,
@@ -11,56 +10,18 @@ const CONFIG = {
   padding: 40,
   lineColor: 0x10b981,
   axisColor: 0x4b5563,
-  fontStyle: {
-    fontFamily: 'Arial',
-    fontSize: 10,
-    fill: 0xaaaaaa,
-  },
-  multiplierFontStyle: {
-    fontFamily: 'Arial',
-    fontSize: 120,
-    fill: 0x808080,
-    align: 'center',
-  },
-  crashedFontStyle: {
-    fontFamily: 'Arial',
-    fontSize: 75,
-    fill: 0xff0000,
-    align: 'center',
-  },
-  waitFontStyle: {
-    fontFamily: 'Arial',
-    fontSize: 30,
-    fill: 0x888888,
-    align: 'center',
-  },
-  curve: {
-    A: 0.02,  // Affects the "aggressiveness" of growth
-    B: 1.5,   // Initial time exponent (affects initial curvature)
-    B_GROWTH: 0.01, // How much B increases per second
-    MAX_B: 3.0, // Maximum value of B
-  },
-  scaling: {
-    initialMaxTime: 10,   // Initial X axis range (in seconds)
-    initialMaxMultiplier: 1.3, // Initial Y axis range
-    scaleFactor: 1.5,     // Axis scaling multiplier
-    scaleTrigger: 0.8,    // When to scale (e.g. at 80% of range)
-    smoothingFactor: 0.2, // Smoothing factor for scale animation
-  },
-  zigzag: {
-    amplitude: 0.001, // Amplitude of line "jitter"
-    frequency: 50,    // Frequency of "jitter"
-  },
-  gameplay: {
-    waitBeforeNextRound: 3,
-    crashMessageTimeout: 2000
-  }
+  fontStyle: { fontFamily: 'Arial', fontSize: 10, fill: 0xaaaaaa },
+  multiplierFontStyle: { fontFamily: 'Arial', fontSize: 120, fill: 0x808080, align: 'center' },
+  crashedFontStyle: { fontFamily: 'Arial', fontSize: 75, fill: 0xff0000, align: 'center' },
+  waitFontStyle: { fontFamily: 'Arial', fontSize: 30, fill: 0x888888, align: 'center' },
+  curve: { A: 0.02, B: 1.5, B_GROWTH: 0.01, MAX_B: 3.0 },
+  scaling: { initialMaxTime: 10, initialMaxMultiplier: 1.3, scaleFactor: 1.5, scaleTrigger: 0.8, smoothingFactor: 0.2 },
+  zigzag: { amplitude: 0.001, frequency: 50 },
+  gameplay: { waitBeforeNextRound: 3, crashMessageTimeout: 2000 }
 };
 
 declare global {
-  interface Window {
-    PIXI: any;
-  }
+  interface Window { PIXI: any; }
 }
 
 class CrashGraphReact {
@@ -75,7 +36,6 @@ class CrashGraphReact {
   private crashMultiplierText: any = null;
   private waitText: any = null;
   private animationId: number | null = null;
-  private startTime: number | null = null;
   private elapsedTime: number = 0;
   private currentMultiplier: number = 1.0;
   private isRunning: boolean = false;
@@ -84,27 +44,15 @@ class CrashGraphReact {
   private targetMaxMultiplier: number = CONFIG.scaling.initialMaxMultiplier;
   private displayMaxTime: number = CONFIG.scaling.initialMaxTime;
   private displayMaxMultiplier: number = CONFIG.scaling.initialMaxMultiplier;
-  private lastMultiplier: number = 1.0;
 
   constructor(private containerId: string) { }
 
   async init(): Promise<void> {
-    if (typeof window === 'undefined' || !window.PIXI) {
-      console.error('PIXI.js not loaded');
-      return;
-    }
-
+    if (typeof window === 'undefined' || !window.PIXI) return;
     this.app = new window.PIXI.Application();
-    await this.app.init({
-      width: CONFIG.width,
-      height: CONFIG.height,
-      backgroundColor: CONFIG.backgroundColor,
-      antialias: true,
-    });
-
+    await this.app.init({ width: CONFIG.width, height: CONFIG.height, backgroundColor: CONFIG.backgroundColor, antialias: true });
     const container = document.getElementById(this.containerId);
     if (container) {
-      // Clear any existing canvas
       container.innerHTML = '';
       container.appendChild(this.app.canvas);
       this._setupStage();
@@ -136,50 +84,29 @@ class CrashGraphReact {
     this.waitText.anchor.set(0.5);
     this.waitText.position.set(CONFIG.width / 2, CONFIG.height / 2);
 
-    this.stage.addChild(
-      this.axisGraphics,
-      this.graphLine,
-      this.xAxisLabels,
-      this.yAxisLabels,
-      this.multiplierText,
-      this.crashedText,
-      this.crashMultiplierText,
-      this.waitText
-    );
+    this.stage.addChild(this.axisGraphics, this.graphLine, this.xAxisLabels, this.yAxisLabels, this.multiplierText, this.crashedText, this.crashMultiplierText, this.waitText);
     this._updateAxes();
     this._resetState();
   }
 
   private _resetState(): void {
-    this.startTime = null;
     this.elapsedTime = 0;
     this.currentMultiplier = 1.0;
     this.isRunning = false;
     this.crashed = false;
-    this.lastMultiplier = 1.0;
-
     this.targetMaxTime = CONFIG.scaling.initialMaxTime;
     this.targetMaxMultiplier = CONFIG.scaling.initialMaxMultiplier;
     this.displayMaxTime = this.targetMaxTime;
     this.displayMaxMultiplier = this.targetMaxMultiplier;
 
-    if (this.graphLine) {
-      this.graphLine.clear();
-    }
-
-    if (this.xAxisLabels) {
-      this.xAxisLabels.removeChildren();
-    }
-    if (this.yAxisLabels) {
-      this.yAxisLabels.removeChildren();
-    }
-
+    if (this.graphLine) this.graphLine.clear();
+    if (this.xAxisLabels) this.xAxisLabels.removeChildren();
+    if (this.yAxisLabels) this.yAxisLabels.removeChildren();
     if (this.multiplierText) {
       this.multiplierText.text = '1.00x';
       this.multiplierText.style.fill = CONFIG.multiplierFontStyle.fill;
       this.multiplierText.visible = false;
     }
-
     if (this.graphLine) this.graphLine.visible = false;
     if (this.crashedText) this.crashedText.visible = false;
     if (this.crashMultiplierText) this.crashMultiplierText.visible = false;
@@ -189,37 +116,31 @@ class CrashGraphReact {
   }
 
   startAnimation(): void {
-    if (this.animationId) {
-      cancelAnimationFrame(this.animationId);
-    }
-
+    if (this.isRunning) return;
     this._resetState();
     this.isRunning = true;
-    this.startTime = performance.now();
-
+    this.crashed = false;
     if (this.graphLine) this.graphLine.visible = true;
     if (this.multiplierText) this.multiplierText.visible = true;
-    this.crashed = false;
-
-    this._animate();
   }
 
-  stopAnimation(): void {
+  update(elapsedTime: number, currentMultiplier: number): void {
+    if (!this.isRunning || this.crashed) return;
+    this.elapsedTime = elapsedTime;
+    this.currentMultiplier = currentMultiplier;
+    this._adjustScaleTargets();
+    this._drawGraph();
+    this._updateAxes();
+    this._updateMultiplierText();
+  }
+
+  showCrashed(finalMultiplier: number): void {
     this.isRunning = false;
-    if (this.animationId) {
-      cancelAnimationFrame(this.animationId);
-      this.animationId = null;
-    }
-  }
-
-  showCrashed(): void {
     this.crashed = true;
-    this.isRunning = false;
-
     if (this.multiplierText) this.multiplierText.visible = false;
     if (this.crashedText) this.crashedText.visible = true;
     if (this.crashMultiplierText) {
-      this.crashMultiplierText.text = `@${this.lastMultiplier.toFixed(2)}x`;
+      this.crashMultiplierText.text = `@${finalMultiplier.toFixed(2)}x`;
       this.crashMultiplierText.visible = true;
     }
   }
@@ -232,27 +153,6 @@ class CrashGraphReact {
     }
   }
 
-  updateFromStore(): void {
-    if (!this.isRunning) return;
-
-    // Use real-time data from store
-    this.currentMultiplier = crashGameStore.multiplier;
-    this.elapsedTime = crashGameStore.xChart;
-    this.lastMultiplier = this.currentMultiplier;
-
-    this._adjustScaleTargets();
-    this._drawGraph();
-    this._updateAxes();
-    this._updateMultiplierText();
-  }
-
-  private _animate(): void {
-    if (!this.isRunning || this.crashed) return;
-
-    this.updateFromStore();
-    this.animationId = requestAnimationFrame(() => this._animate());
-  }
-
   private _adjustScaleTargets(): void {
     if (this.elapsedTime > this.targetMaxTime * CONFIG.scaling.scaleTrigger) {
       this.targetMaxTime *= CONFIG.scaling.scaleFactor;
@@ -260,32 +160,22 @@ class CrashGraphReact {
     if (this.currentMultiplier > this.targetMaxMultiplier * CONFIG.scaling.scaleTrigger) {
       this.targetMaxMultiplier *= CONFIG.scaling.scaleFactor;
     }
-
-    // Smooth scaling
-    const factor = CONFIG.scaling.smoothingFactor * (1 / 60); // Assuming 60fps
+    const factor = CONFIG.scaling.smoothingFactor * (1 / 60);
     this.displayMaxTime += (this.targetMaxTime - this.displayMaxTime) * factor;
     this.displayMaxMultiplier += (this.targetMaxMultiplier - this.displayMaxMultiplier) * factor;
   }
 
   private _drawGraph(): void {
     if (!this.graphLine) return;
-
     this.graphLine.clear().stroke({ width: 4, color: CONFIG.lineColor });
-
     const segments = Math.max(10, Math.min(100, this.elapsedTime * 10));
     const maxT = Math.min(this.elapsedTime, this.displayMaxTime);
-
     if (maxT <= 0) return;
-
     this.graphLine.moveTo(this._mapTimeToX(0), this._mapMultiplierToY(1));
-
     for (let i = 1; i <= segments; i++) {
       const t = (maxT / segments) * i;
       let m = this._calculateMultiplier(t);
-
-      // Add some visual noise for realism
       m += Math.sin(t * CONFIG.zigzag.frequency) * CONFIG.zigzag.amplitude;
-
       this.graphLine.lineTo(this._mapTimeToX(t), this._mapMultiplierToY(m));
     }
   }
@@ -298,18 +188,11 @@ class CrashGraphReact {
 
   private _updateAxes(): void {
     if (!this.axisGraphics || !this.xAxisLabels || !this.yAxisLabels) return;
-
     this.axisGraphics.clear().stroke({ width: 2, color: CONFIG.axisColor });
     this.xAxisLabels.removeChildren();
     this.yAxisLabels.removeChildren();
-
-    // Draw axes
-    this.axisGraphics.moveTo(CONFIG.padding, CONFIG.height - CONFIG.padding)
-      .lineTo(CONFIG.width, CONFIG.height - CONFIG.padding);
-    this.axisGraphics.moveTo(CONFIG.padding, 0)
-      .lineTo(CONFIG.padding, CONFIG.height - CONFIG.padding);
-
-    // Y-axis labels (multiplier)
+    this.axisGraphics.moveTo(CONFIG.padding, CONFIG.height - CONFIG.padding).lineTo(CONFIG.width, CONFIG.height - CONFIG.padding);
+    this.axisGraphics.moveTo(CONFIG.padding, 0).lineTo(CONFIG.padding, CONFIG.height - CONFIG.padding);
     const yTicks = this._getNiceTicks(1, this.displayMaxMultiplier, 5);
     yTicks.forEach(tickValue => {
       const y = this._mapMultiplierToY(tickValue);
@@ -319,8 +202,6 @@ class CrashGraphReact {
       label.position.set(CONFIG.padding - 10, y);
       this.yAxisLabels.addChild(label);
     });
-
-    // X-axis labels (time)
     const xTicks = this._getNiceTicks(0, this.displayMaxTime, 8);
     xTicks.forEach(tickValue => {
       if (tickValue === 0) return;
@@ -339,15 +220,8 @@ class CrashGraphReact {
     }
   }
 
-  private _mapTimeToX(time: number): number {
-    const graphWidth = CONFIG.width - CONFIG.padding;
-    return CONFIG.padding + (time / this.displayMaxTime) * graphWidth;
-  }
-
-  private _mapMultiplierToY(multiplier: number): number {
-    const graphHeight = CONFIG.height - CONFIG.padding;
-    return (CONFIG.height - CONFIG.padding) - ((multiplier - 1) / (this.displayMaxMultiplier - 1)) * graphHeight;
-  }
+  private _mapTimeToX = (time: number): number => CONFIG.padding + (time / this.displayMaxTime) * (CONFIG.width - CONFIG.padding);
+  private _mapMultiplierToY = (multiplier: number): number => (CONFIG.height - CONFIG.padding) - ((multiplier - 1) / (this.displayMaxMultiplier - 1)) * (CONFIG.height - CONFIG.padding);
 
   private _getNiceTicks(min: number, max: number, count: number): number[] {
     if (max <= min) return [min];
@@ -380,49 +254,51 @@ class CrashGraphReact {
   }
 }
 
-const Wykres = observer(() => {
+const Wykres = () => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const crashGraphRef = useRef<CrashGraphReact | null>(null);
-  const pixiLoadedRef = useRef(false);
+  const loadingRef = useRef<HTMLDivElement | null>(null);
+
+  const { phase, multiplier, xChart, timeRemaining } = useCrashGameStore();
 
   useEffect(() => {
-    const loadPixi = async () => {
-      if (typeof window !== 'undefined' && !window.PIXI && !pixiLoadedRef.current) {
-        pixiLoadedRef.current = true;
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pixi.js/8.0.0/pixi.min.js';
-        script.onload = () => {
-          setTimeout(initializeGraph, 100); // Small delay to ensure PIXI is fully loaded
-        };
-        document.head.appendChild(script);
-      } else if (window.PIXI) {
-        initializeGraph();
+    const loadPixiScript = (): Promise<void> => new Promise((resolve) => {
+      if (window.PIXI) return resolve();
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pixi.js/8.0.0/pixi.min.js';
+      script.onload = () => resolve();
+      document.head.appendChild(script);
+    });
+
+    const initGraph = async () => {
+      await loadPixiScript();
+      if (loadingRef.current) loadingRef.current.style.display = 'none';
+      if (canvasRef.current && !crashGraphRef.current) {
+        const graph = new CrashGraphReact('crash-canvas');
+        await graph.init();
+        crashGraphRef.current = graph;
+        updateGraphVisuals(useCrashGameStore.getState());
       }
     };
 
-    const initializeGraph = async () => {
-      if (canvasRef.current && window.PIXI && !crashGraphRef.current) {
-        crashGraphRef.current = new CrashGraphReact('crash-canvas');
-        await crashGraphRef.current.init();
-
-        // Initialize based on current game state
-        updateGraphState();
-      }
-    };
-
-    const updateGraphState = () => {
+    const updateGraphVisuals = (currentState: { phase: CrashGamePhase, multiplier: number, timeRemaining: number }) => {
       if (!crashGraphRef.current) return;
-
-      if (crashGameStore.gameActive) {
-        crashGraphRef.current.startAnimation();
-      } else if (crashGameStore.bettingOpen) {
-        crashGraphRef.current.showWaiting(crashGameStore.formattedTimeRemaining);
-      } else {
-        crashGraphRef.current.showCrashed();
+      switch (currentState.phase) {
+        case CrashGamePhase.Running:
+          crashGraphRef.current.startAnimation();
+          break;
+        case CrashGamePhase.Crashed:
+          crashGraphRef.current.showCrashed(currentState.multiplier);
+          break;
+        case CrashGamePhase.Betting:
+        default:
+          const timeStr = Math.max(0, currentState.timeRemaining).toFixed(1) + 's';
+          crashGraphRef.current.showWaiting(timeStr);
+          break;
       }
     };
 
-    loadPixi();
+    initGraph();
 
     return () => {
       if (crashGraphRef.current) {
@@ -432,50 +308,43 @@ const Wykres = observer(() => {
     };
   }, []);
 
-  // Update animation based on game state changes
   useEffect(() => {
     if (!crashGraphRef.current) return;
-
-    if (crashGameStore.gameActive) {
-      crashGraphRef.current.startAnimation();
-    } else if (crashGameStore.bettingOpen) {
-      crashGraphRef.current.showWaiting(crashGameStore.formattedTimeRemaining);
-    } else {
-      crashGraphRef.current.showCrashed();
+    switch (phase) {
+      case CrashGamePhase.Running:
+        crashGraphRef.current.startAnimation();
+        break;
+      case CrashGamePhase.Crashed:
+        crashGraphRef.current.showCrashed(multiplier);
+        break;
+      case CrashGamePhase.Betting:
+        const timeStr = Math.max(0, timeRemaining).toFixed(1) + 's';
+        crashGraphRef.current.showWaiting(timeStr);
+        break;
     }
-  }, [crashGameStore.gameActive, crashGameStore.bettingOpen]);
+  }, [phase]);
 
-  // Update graph during active game
   useEffect(() => {
-    if (crashGraphRef.current && crashGameStore.gameActive) {
-      crashGraphRef.current.updateFromStore();
+    if (!crashGraphRef.current) return;
+    if (phase === CrashGamePhase.Running) {
+      crashGraphRef.current.update(xChart, multiplier);
+    } else if (phase === CrashGamePhase.Betting) {
+      const timeStr = Math.max(0, timeRemaining).toFixed(1) + 's';
+      crashGraphRef.current.showWaiting(timeStr);
     }
-  }, [crashGameStore.multiplier, crashGameStore.xChart, crashGameStore.yChart]);
+  }, [multiplier, xChart, timeRemaining]);
 
   return (
     <div
       className="float-left h-110 w-3/5 border flex items-center justify-center relative"
-      style={{
-        backgroundColor: 'rgb(24, 26, 30)',
-        borderColor: 'rgb(41, 36, 36)'
-      }}
+      style={{ backgroundColor: 'rgb(24, 26, 30)', borderColor: 'rgb(41, 36, 36)' }}
     >
-      <div
-        id="crash-canvas"
-        ref={canvasRef}
-        style={{ width: '100%', height: '100%' }}
-      />
-
-      {/* Fallback content while PIXI loads */}
-      {!window.PIXI && (
-        <div className="absolute inset-0 flex items-center justify-center text-center pointer-events-none">
-          <div className="text-white text-2xl font-bold">
-            Loading Chart...
-          </div>
-        </div>
-      )}
+      <div id="crash-canvas" ref={canvasRef} style={{ width: '100%', height: '100%' }} />
+      <div ref={loadingRef} className="absolute inset-0 flex items-center justify-center text-center pointer-events-none">
+        <div className="text-white text-2xl font-bold">Loading Chart...</div>
+      </div>
     </div>
   );
-});
+};
 
 export default Wykres;

@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import * as signalR from '@microsoft/signalr';
+import { create } from "zustand";
+import * as signalR from "@microsoft/signalr";
 import {
   CrashBet,
   CrashGameUpdate,
@@ -7,9 +7,9 @@ import {
   BalanceUpdate,
   CrashGameState,
   CrashGameActions,
-  CrashGamePhase
-} from '@/app/types/crash'
-import useAuthStore from './AuthStore';
+  CrashGamePhase,
+} from "@/app/types/crash";
+import useAuthStore from "./AuthStore";
 
 type CrashGameStore = CrashGameState & CrashGameActions;
 
@@ -35,10 +35,10 @@ const useCrashGameStore = create<CrashGameStore>((set, get) => ({
   // Connection management
   connect: async () => {
     const state = get();
-    
+
     // Jeśli już połączony, nie rób nic
     if (state.connection?.state === signalR.HubConnectionState.Connected) {
-      console.log('Already connected to SignalR');
+      console.log("Already connected to SignalR");
       return;
     }
 
@@ -47,7 +47,7 @@ const useCrashGameStore = create<CrashGameStore>((set, get) => ({
       try {
         await state.connection.stop();
       } catch (e) {
-        console.log('Error stopping existing connection:', e);
+        console.log("Error stopping existing connection:", e);
       }
     }
 
@@ -55,14 +55,14 @@ const useCrashGameStore = create<CrashGameStore>((set, get) => ({
       // Pobierz token z AuthStore
       const authStore = useAuthStore.getState();
       const token = authStore.token;
-      
+
       if (!token) {
-        console.error('No authentication token available');
-        set({ error: 'No authentication token', connected: false });
+        console.error("No authentication token available");
+        set({ error: "No authentication token", connected: false });
         return;
       }
 
-      console.log('Creating new SignalR connection...');
+      console.log("Creating new SignalR connection...");
 
       const connection = new signalR.HubConnectionBuilder()
         .withUrl(`${state.url}/crashHub`, {
@@ -72,19 +72,22 @@ const useCrashGameStore = create<CrashGameStore>((set, get) => ({
           transport: signalR.HttpTransportType.WebSockets,
         })
         .withAutomaticReconnect({
-          nextRetryDelayInMilliseconds: retryContext => {
+          nextRetryDelayInMilliseconds: (retryContext) => {
             if (retryContext.previousRetryCount === 0) {
               return 0;
             }
-            return Math.min(1000 * Math.pow(2, retryContext.previousRetryCount), 30000);
-          }
+            return Math.min(
+              1000 * Math.pow(2, retryContext.previousRetryCount),
+              30000
+            );
+          },
         })
         .configureLogging(signalR.LogLevel.Information)
         .build();
 
       // Connection state handlers
       connection.onclose((error) => {
-        console.log('SignalR connection closed:', error);
+        console.log("SignalR connection closed:", error);
         set({ connected: false });
         if (error) {
           set({ error: `Connection closed: ${error.message}` });
@@ -92,91 +95,66 @@ const useCrashGameStore = create<CrashGameStore>((set, get) => ({
       });
 
       connection.onreconnecting((error) => {
-        console.log('SignalR reconnecting:', error);
-        set({ connected: false, error: 'Reconnecting...' });
+        console.log("SignalR reconnecting:", error);
+        set({ connected: false, error: "Reconnecting..." });
       });
 
       connection.onreconnected((connectionId) => {
-        console.log('SignalR reconnected:', connectionId);
+        console.log("SignalR reconnected:", connectionId);
         set({ connected: true, error: null });
         // Pobierz balance po reconnect
         setTimeout(() => get().requestBalance(), 1000);
       });
 
-      // Event handlers - używamy małych liter zgodnie z tym co wysyła serwer
-      connection.on('gameupdate', (gameUpdate: CrashGameUpdate) => {
-        console.log('Received gameupdate:', gameUpdate);
-        get().handleGameUpdate(gameUpdate);
-      });
-
-      connection.on('gamecrashed', () => {
-        console.log('Received gamecrashed');
+      connection.on("GameCrasked", () => {
         get().handleGameCrashed();
       });
 
-      connection.on('betplaced', (response: { success: boolean; amount?: number; message?: string }) => {
-        console.log('Received betplaced:', response);
-        get().handleBetPlaced(response);
-      });
-
-      connection.on('withdrawsuccess', (response: { success: boolean; message?: string }) => {
-        console.log('Received withdrawsuccess:', response);
-        get().handleWithdrawSuccess(response);
-      });
-
-      connection.on('balanceupdate', (balanceUpdate: any) => {
-        console.log('Received balanceupdate:', balanceUpdate);
-        get().handleBalanceUpdate(balanceUpdate);
-      });
-
-      connection.on('error', (error: string) => {
-        console.log('Received error from server:', error);
-        get().setError(error);
-      });
-
-      // Dodatkowe obsługa dla różnych wariantów nazw (z wielkimi literami)
-      connection.on('GameUpdate', (gameUpdate: CrashGameUpdate) => {
-        console.log('Received GameUpdate:', gameUpdate);
+      connection.on("GameUpdate", (gameUpdate: CrashGameUpdate) => {
         get().handleGameUpdate(gameUpdate);
       });
 
-      connection.on('BalanceUpdate', (balanceUpdate: any) => {
-        console.log('Received BalanceUpdate:', balanceUpdate);
+      connection.on("BalanceUpdate", (balanceUpdate: any) => {
         get().handleBalanceUpdate(balanceUpdate);
       });
 
-      connection.on('BetPlaced', (response: { success: boolean; amount?: number; message?: string }) => {
-        console.log('Received BetPlaced:', response);
-        get().handleBetPlaced(response);
+      connection.on(
+        "BetPlaced",
+        (response: { success: boolean; amount?: number; message?: string }) => {
+          get().handleBetPlaced(response);
+        }
+      );
+
+      connection.on(
+        "WithdrawSuccess",
+        (response: { success: boolean; message?: string }) => {
+          get().handleWithdrawSuccess(response);
+        }
+      );
+
+      connection.on("error", (error: string) => {
+        get().setError(error);
       });
 
-      connection.on('WithdrawSuccess', (response: { success: boolean; message?: string }) => {
-        console.log('Received WithdrawSuccess:', response);
-        get().handleWithdrawSuccess(response);
-      });
-
-      console.log('Starting SignalR connection...');
       await connection.start();
-      
-      console.log('SignalR connection started successfully');
+
       set({
         connection,
         connected: true,
-        error: null
+        error: null,
       });
 
-      // Request initial balance po połączeniu
       setTimeout(async () => {
-        console.log('Requesting initial balance...');
         await get().requestBalance();
       }, 1000);
-      
     } catch (error) {
-      console.error('SignalR connection failed:', error);
+      console.error("SignalR connection failed:", error);
       set({
         connected: false,
         connection: null,
-        error: 'Connection failed: ' + (error instanceof Error ? error.message : String(error))
+        error:
+          "Connection failed: " +
+          (error instanceof Error ? error.message : String(error)),
       });
     }
   },
@@ -185,98 +163,99 @@ const useCrashGameStore = create<CrashGameStore>((set, get) => ({
     const { connection } = get();
     if (connection) {
       try {
-        console.log('Disconnecting from SignalR...');
+        console.log("Disconnecting from SignalR...");
         await connection.stop();
       } catch (error) {
-        console.error('Error during disconnect:', error);
+        console.error("Error during disconnect:", error);
       } finally {
         set({
           connection: null,
-          connected: false
+          connected: false,
         });
       }
     }
   },
 
-  // Balance management
   requestBalance: async () => {
     const { connection, connected } = get();
-    
+
     if (!connection || !connected) {
-      console.log('Cannot request balance - not connected');
+      console.log("Cannot request balance - not connected");
       return;
     }
 
     if (connection.state !== signalR.HubConnectionState.Connected) {
-      console.log('Cannot request balance - connection state:', connection.state);
+      console.log(
+        "Cannot request balance - connection state:",
+        connection.state
+      );
       return;
     }
 
     try {
-      console.log('Requesting balance from server...');
-      await connection.invoke('GetBalance');
-      console.log('Balance request sent successfully');
+      console.log("Requesting balance from server...");
+      await connection.invoke("GetBalance");
+      console.log("Balance request sent successfully");
     } catch (error) {
-      console.error('Failed to request balance:', error);
+      console.error("Failed to request balance:", error);
       // Nie ustawiamy error dla balance request - może być tymczasowy problem
     }
   },
 
-  // Game actions
   placeBet: async (userId?: string) => {
     const { connection, betAmount, connected } = get();
     const state = get();
-    
-    console.log('placeBet called:', { userId, betAmount, connected });
-    
+
+    console.log("placeBet called:", { userId, betAmount, connected });
+
     // Sprawdź połączenie
     if (!connection || !connected) {
-      const errorMsg = 'No connection to server';
-      console.error('Cannot place bet:', errorMsg);
+      const errorMsg = "No connection to server";
+      console.error("Cannot place bet:", errorMsg);
       set({ error: errorMsg });
       return;
     }
 
     if (connection.state !== signalR.HubConnectionState.Connected) {
       const errorMsg = `Connection not ready (state: ${connection.state})`;
-      console.error('Cannot place bet:', errorMsg);
+      console.error("Cannot place bet:", errorMsg);
       set({ error: errorMsg });
       return;
     }
 
     // Sprawdź warunki gry
     if (!canPlaceBet(state, userId)) {
-      console.log('Cannot place bet - game conditions not met');
+      console.log("Cannot place bet - game conditions not met");
       return;
     }
 
     if (betAmount <= 0) {
-      const errorMsg = 'Invalid bet amount';
-      console.error('Cannot place bet:', errorMsg);
+      const errorMsg = "Invalid bet amount";
+      console.error("Cannot place bet:", errorMsg);
       set({ error: errorMsg });
       return;
     }
 
     try {
       set({ loading: true, error: null });
-      console.log('Sending PlaceBet request with amount:', betAmount);
+      console.log("Sending PlaceBet request with amount:", betAmount);
 
-      // Spróbuj różnych formatów danych
-      await connection.invoke('PlaceBet', { BetAmount: betAmount });
-      
-      console.log('PlaceBet request sent successfully');
-      
+      // Wysyłamy obiekt z właściwością BetAmount
+      const request: PlaceBetRequest = { betAmount: betAmount };
+      await connection.invoke("PlaceBet", request);
+
+      console.log("PlaceBet request sent successfully");
     } catch (error) {
-      console.error('PlaceBet failed:', error);
+      console.error("PlaceBet failed:", error);
       const errorMsg = error instanceof Error ? error.message : String(error);
-      set({ 
-        error: `Failed to place bet: ${errorMsg}`, 
-        loading: false 
+      set({
+        error: `Failed to place bet: ${errorMsg}`,
+        loading: false,
       });
-      
+
       // Jeśli błąd dotyczy połączenia, spróbuj reconnect
-      if (errorMsg.includes('Connection') || errorMsg.includes('connection')) {
-        console.log('Connection error detected, attempting reconnect...');
+      if (errorMsg.includes("Connection") || errorMsg.includes("connection")) {
+        console.log("Connection error detected, attempting reconnect...");
         setTimeout(() => get().connect(), 2000);
       }
     }
@@ -285,49 +264,48 @@ const useCrashGameStore = create<CrashGameStore>((set, get) => ({
   withdraw: async (userId?: string) => {
     const { connection, connected } = get();
     const state = get();
-    
-    console.log('withdraw called:', { userId, connected });
-    
+
+    console.log("withdraw called:", { userId, connected });
+
     // Sprawdź połączenie
     if (!connection || !connected) {
-      const errorMsg = 'No connection to server';
-      console.error('Cannot withdraw:', errorMsg);
+      const errorMsg = "No connection to server";
+      console.error("Cannot withdraw:", errorMsg);
       set({ error: errorMsg });
       return;
     }
 
     if (connection.state !== signalR.HubConnectionState.Connected) {
       const errorMsg = `Connection not ready (state: ${connection.state})`;
-      console.error('Cannot withdraw:', errorMsg);
+      console.error("Cannot withdraw:", errorMsg);
       set({ error: errorMsg });
       return;
     }
 
     // Sprawdź warunki gry
     if (!canWithdraw(state, userId)) {
-      console.log('Cannot withdraw - game conditions not met');
+      console.log("Cannot withdraw - game conditions not met");
       return;
     }
 
     try {
       set({ loading: true, error: null });
-      console.log('Sending Withdraw request...');
+      console.log("Sending Withdraw request...");
 
-      await connection.invoke('Withdraw');
-      
-      console.log('Withdraw request sent successfully');
-      
+      await connection.invoke("Withdraw");
+
+      console.log("Withdraw request sent successfully");
     } catch (error) {
-      console.error('Withdraw failed:', error);
+      console.error("Withdraw failed:", error);
       const errorMsg = error instanceof Error ? error.message : String(error);
-      set({ 
-        error: `Failed to withdraw: ${errorMsg}`, 
-        loading: false 
+      set({
+        error: `Failed to withdraw: ${errorMsg}`,
+        loading: false,
       });
-      
+
       // Jeśli błąd dotyczy połączenia, spróbuj reconnect
-      if (errorMsg.includes('Connection') || errorMsg.includes('connection')) {
-        console.log('Connection error detected, attempting reconnect...');
+      if (errorMsg.includes("Connection") || errorMsg.includes("connection")) {
+        console.log("Connection error detected, attempting reconnect...");
         setTimeout(() => get().connect(), 2000);
       }
     }
@@ -353,61 +331,69 @@ const useCrashGameStore = create<CrashGameStore>((set, get) => ({
       bets: gameUpdate.bets,
       timeRemaining: gameUpdate.timeRemaining,
       bettingOpen: gameUpdate.bettingOpen,
-      gameActive: gameUpdate.gameActive
+      gameActive: gameUpdate.gameActive,
     });
   },
 
   handleGameCrashed: () => {
-    set({ 
-      gameActive: false, 
-      phase: CrashGamePhase.Crashed 
+    set({
+      gameActive: false,
+      phase: CrashGamePhase.Crashed,
     });
-    console.log('Game crashed at:', get().multiplier.toFixed(2) + 'x');
+    console.log("Game crashed at:", get().multiplier.toFixed(2) + "x");
   },
 
-  handleBetPlaced: (response: { success: boolean; amount?: number; message?: string }) => {
-    console.log('Processing bet placed response:', response);
+  handleBetPlaced: (response: {
+    success: boolean;
+    amount?: number;
+    message?: string;
+  }) => {
+    console.log("Processing bet placed response:", response);
     set({ loading: false });
     if (response.success) {
       set({ error: null });
       // Request updated balance after successful bet
       setTimeout(() => get().requestBalance(), 500);
     } else {
-      set({ error: response.message || 'Failed to place bet' });
+      set({ error: response.message || "Failed to place bet" });
     }
   },
 
   handleWithdrawSuccess: (response: { success: boolean; message?: string }) => {
-    console.log('Processing withdraw response:', response);
+    console.log("Processing withdraw response:", response);
     set({ loading: false });
     if (response.success) {
       set({ error: null });
       // Request updated balance after successful withdraw
       setTimeout(() => get().requestBalance(), 500);
     } else {
-      set({ error: response.message || 'Failed to withdraw' });
+      set({ error: response.message || "Failed to withdraw" });
     }
   },
 
   handleBalanceUpdate: (balanceUpdate: any) => {
-    console.log('Processing balance update - RAW:', balanceUpdate);
-    
+    console.log("Processing balance update - RAW:", balanceUpdate);
+
     // Sprawdź różne możliwe struktury
     let balance = 0;
-    if (typeof balanceUpdate === 'number') {
+    if (typeof balanceUpdate === "number") {
       balance = balanceUpdate;
-    } else if (balanceUpdate && typeof balanceUpdate.balance === 'number') {
+    } else if (balanceUpdate && typeof balanceUpdate.balance === "number") {
       balance = balanceUpdate.balance;
-    } else if (balanceUpdate && typeof balanceUpdate.Balance === 'number') {
+    } else if (balanceUpdate && typeof balanceUpdate.Balance === "number") {
       balance = balanceUpdate.Balance;
-    } else if (balanceUpdate && balanceUpdate.data && typeof balanceUpdate.data.balance === 'number') {
+    } else if (
+      balanceUpdate &&
+      balanceUpdate.data &&
+      typeof balanceUpdate.data.balance === "number"
+    ) {
       balance = balanceUpdate.data.balance;
     } else {
-      console.error('Unknown balance update structure:', balanceUpdate);
+      console.error("Unknown balance update structure:", balanceUpdate);
       return;
     }
-    
-    console.log('Setting balance to:', balance);
+
+    console.log("Setting balance to:", balance);
     set({ balance: balance });
   },
 
@@ -431,58 +417,76 @@ const useCrashGameStore = create<CrashGameStore>((set, get) => ({
   // Auto cash out logic
   checkAutoCashOut: (userId?: string) => {
     const state = get();
-    if (state.autoCashOut > 0 &&
+    if (
+      state.autoCashOut > 0 &&
       state.gameActive &&
       state.multiplier >= state.autoCashOut &&
       getCurrentUserBet(state, userId) &&
-      canWithdraw(state, userId)) {
-      console.log('Auto cash out triggered at:', state.multiplier);
+      canWithdraw(state, userId)
+    ) {
+      console.log("Auto cash out triggered at:", state.multiplier);
       get().withdraw(userId);
     }
-  }
+  },
 }));
 
 // Helper functions
-export const getCurrentUserBet = (state: CrashGameState, userId?: string): CrashBet | null => {
+export const getCurrentUserBet = (
+  state: CrashGameState,
+  userId?: string
+): CrashBet | null => {
   if (!userId) return null;
   return state.bets[userId] || null;
 };
 
-export const getHasActiveBet = (state: CrashGameState, userId?: string): boolean => {
+export const getHasActiveBet = (
+  state: CrashGameState,
+  userId?: string
+): boolean => {
   return getCurrentUserBet(state, userId) !== null;
 };
 
-export const canPlaceBet = (state: CrashGameState, userId?: string): boolean => {
-  return state.connected &&
+export const canPlaceBet = (
+  state: CrashGameState,
+  userId?: string
+): boolean => {
+  return (
+    state.connected &&
     state.phase === CrashGamePhase.Betting &&
     state.bettingOpen &&
     !getHasActiveBet(state, userId) &&
     state.betAmount > 0 &&
-    state.betAmount <= state.balance;
+    state.betAmount <= state.balance
+  );
 };
 
-export const canWithdraw = (state: CrashGameState, userId?: string): boolean => {
+export const canWithdraw = (
+  state: CrashGameState,
+  userId?: string
+): boolean => {
   const currentBet = getCurrentUserBet(state, userId);
-  return state.connected &&
+  return (
+    state.connected &&
     state.phase === CrashGamePhase.Running &&
     state.gameActive &&
     getHasActiveBet(state, userId) &&
     currentBet &&
-    !currentBet.inGame?.withdrew;
+    !currentBet.inGame?.withdrew
+  );
 };
 
 export const getFormattedMultiplier = (state: CrashGameState): string => {
-  return state.multiplier.toFixed(2) + 'x';
+  return state.multiplier.toFixed(2) + "x";
 };
 
 export const getFormattedTimeRemaining = (state: CrashGameState): string => {
-  return Math.max(0, state.timeRemaining).toFixed(1) + 's';
+  return Math.max(0, state.timeRemaining).toFixed(1) + "s";
 };
 
 export const getFormattedBalance = (state: CrashGameState): string => {
-  return state.balance.toLocaleString('pl-PL', {
+  return state.balance.toLocaleString("pl-PL", {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   });
 };
 

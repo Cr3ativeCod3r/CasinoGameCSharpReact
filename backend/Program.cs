@@ -65,7 +65,7 @@ builder.Services.AddAuthentication(options => {
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
             
-            // Zmieniono na nowy endpoint CrashHub
+            // Endpoint dla CrashHub
             if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/crashHub"))
             {
                 context.Token = accessToken;
@@ -94,7 +94,10 @@ builder.Services.AddCors(options => {
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
-builder.Services.AddScoped<ICrashGameService, CrashGameService>();
+
+// Rejestracja CrashGameService jako Singleton
+// Teraz używa IServiceScopeFactory do dostępu do scoped services
+builder.Services.AddSingleton<ICrashGameService, CrashGameService>();
 
 var app = builder.Build();
 
@@ -112,29 +115,11 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Map zunifikowany SignalR hub
-
+// Map SignalR hub
 app.MapHub<CrashGameHub>("/crashHub");
 
-// Inicjalizacja crash game service - TYLKO RAZ!
-using (var scope = app.Services.CreateScope())
-{
-    var crashGameService = scope.ServiceProvider.GetRequiredService<ICrashGameService>();
-    var crashGameHub = scope.ServiceProvider.GetRequiredService<IHubContext<CrashGameHub>>();
-
-    // Obsługa eventów z CrashGameService
-    crashGameService.OnGameUpdate += async (gameUpdate) =>
-    {
-        await crashGameHub.Clients.All.SendAsync("GameUpdate", gameUpdate);
-    };
-
-    crashGameService.OnGameCrashed += async () =>
-    {
-        await crashGameHub.Clients.All.SendAsync("GameCrashed");
-    };
-
-    // KLUCZOWA ZMIANA: Uruchom grę tylko raz na starcie aplikacji
-    crashGameService.StartGameIfNotStarted();
-}
+// Uruchomienie CrashGameService
+var crashGameService = app.Services.GetRequiredService<ICrashGameService>();
+crashGameService.StartGameIfNotStarted();
 
 app.Run();

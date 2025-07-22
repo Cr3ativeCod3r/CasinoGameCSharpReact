@@ -3,74 +3,52 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using backend.Services;
 using backend.Models;
-using Microsoft.AspNetCore.Identity;
 
 namespace backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class CrashGameController : ControllerBase
     {
         private readonly ICrashGameService _crashGameService;
-        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ILogger<CrashGameController> _logger;
 
         public CrashGameController(
             ICrashGameService crashGameService,
-            UserManager<ApplicationUser> userManager)
+            ILogger<CrashGameController> logger)
         {
             _crashGameService = crashGameService;
-            _userManager = userManager;
+            _logger = logger;
         }
 
         [HttpGet("state")]
-        [AllowAnonymous]
         public async Task<ActionResult<CrashGameUpdate>> GetGameState()
         {
-            var gameState = await _crashGameService.GetGameStateAsync();
-            return Ok(gameState);
-        }
-
-        [HttpPost("bet")]
-        [Authorize]
-        public async Task<ActionResult> PlaceBet([FromBody] PlaceBetRequest request)
-        {
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null)
+            try
             {
-                return Unauthorized();
+                var gameState = _crashGameService.GetGameState();
+                return Ok(gameState);
             }
-
-            var success = await _crashGameService.PlaceBetAsync(user.Id, user.UserName!, request.BetAmount);
-
-            if (success)
+            catch (Exception ex)
             {
-                return Ok(new { success = true, message = "Bet placed successfully" });
-            }
-            else
-            {
-                return BadRequest(new { success = false, message = "Unable to place bet" });
+                _logger.LogError(ex, "Error getting game state");
+                return StatusCode(500, "An error occurred while retrieving game state");
             }
         }
 
-        [HttpPost("withdraw")]
-        [Authorize]
-        public async Task<ActionResult> Withdraw()
+        [HttpGet("balance/{userId}")]
+        public async Task<ActionResult<decimal>> GetBalance(string userId)
         {
-            var user = await _userManager.GetUserAsync(User);
-            if (user == null)
+            try
             {
-                return Unauthorized();
+                var balance = await _crashGameService.GetUserBalanceAsync(userId);
+                return Ok(balance);
             }
-
-            var success = await _crashGameService.WithdrawAsync(user.Id);
-
-            if (success)
+            catch (Exception ex)
             {
-                return Ok(new { success = true, message = "Withdrawal successful" });
-            }
-            else
-            {
-                return BadRequest(new { success = false, message = "Unable to withdraw" });
+                _logger.LogError(ex, "Error getting balance for user {UserId}", userId);
+                return StatusCode(500, "An error occurred while retrieving balance");
             }
         }
     }

@@ -1,151 +1,194 @@
+// CrashGameHub.Game.cs
 using Microsoft.AspNetCore.SignalR;
-using backend.Data;
-using backend.Models;
-using backend.Services;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
-using System.Security.Claims;
+using backend.Services;
+using backend.Models;
+
 
 namespace backend.Hubs
 {
-    public partial class CrashGameHub : Hub
+    public partial class CrashGameHub
     {
-        private readonly ApplicationDbContext _context;
-        private readonly ICrashGameService _crashGameService;
-        private readonly UserManager<ApplicationUser> _userManager;
-        private readonly ILogger<CrashGameHub> _logger;
-
-        public CrashGameHub(
-            ApplicationDbContext context,
-            ICrashGameService crashGameService,
-            UserManager<ApplicationUser> userManager,
-            ILogger<CrashGameHub> logger)
-        {
-            _context = context;
-            _crashGameService = crashGameService;
-            _userManager = userManager;
-            _logger = logger;
-        }
-
-        // DODANA METODA GetBalance
-        public async Task GetBalance()
-        {
-            var user = await _userManager.GetUserAsync(Context.User);
-            if (user == null)
-            {
-                await Clients.Caller.SendAsync("Error", "User not found");
-                return;
-            }
-
-            try
-            {
-                _logger.LogInformation($"Sending balance to user {user.UserName}: {user.Balance}");
-                await Clients.Caller.SendAsync("BalanceUpdate", new { balance = user.Balance });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting balance for user {UserId}", user.Id);
-                await Clients.Caller.SendAsync("Error", "Error getting balance");
-            }
-        }
-
+        [Authorize]
         public async Task PlaceBet(PlaceBetRequest request)
         {
-            var user = await _userManager.GetUserAsync(Context.User);
-            if (user == null)
-            {
-                await Clients.Caller.SendAsync("Error", "User not found");
-                return;
-            }
-
+     
+            
             try
             {
-                var success = await _crashGameService.PlaceBetAsync(user.Id, user.UserName!, request.BetAmount);
+                var userId = Context.UserIdentifier;
+                if (string.IsNullOrEmpty(userId))
+                {
+           
+                    await Clients.Caller.SendAsync("BetPlaced", new 
+                    { 
+                        success = false, 
+                        message = "User not authenticated" 
+                    });
+                    return;
+                }
 
-                if (success)
+
+
+                // Pobierz użytkownika
+                var user = await _userManager.GetUserAsync(Context.User!);
+                if (user == null)
                 {
-                    await Clients.Caller.SendAsync("BetPlaced", new { success = true, amount = request.BetAmount });
-                    // Po pomyślnym postawieniu zakładu, wyślij zaktualizowany balance
-                    await GetBalance();
+                    await Clients.Caller.SendAsync("BetPlaced", new 
+                    { 
+                        success = false, 
+                        message = "User not found" 
+                    });
+                    return;
                 }
-                else
-                {
-                    await Clients.Caller.SendAsync("BetPlaced", new { success = false, message = "Unable to place bet" });
-                }
+
+                // Umieść zakład
+                var success = await _crashGameService.PlaceBetAsync(userId, user.UserName ?? user.Email ?? "Unknown", request.BetAmount);
+                
+                await Clients.Caller.SendAsync("BetPlaced", new 
+                { 
+                    success = success,
+                    amount = request.BetAmount,
+                    message = success ? "Bet placed successfully" : "Failed to place bet"
+                });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error placing bet for user {UserId}", user.Id);
-                await Clients.Caller.SendAsync("Error", "Błąd podczas stawiania zakładu");
+
+                await Clients.Caller.SendAsync("BetPlaced", new 
+                { 
+                    success = false, 
+                    message = "An error occurred while placing bet" 
+                });
             }
         }
 
+        [Authorize]
         public async Task Withdraw()
         {
-            var user = await _userManager.GetUserAsync(Context.User);
-            if (user == null)
-            {
-                await Clients.Caller.SendAsync("Error", "User not found");
-                return;
-            }
-
+       
+            
             try
             {
-                var success = await _crashGameService.WithdrawAsync(user.Id);
-
-                if (success)
+                var userId = Context.UserIdentifier;
+                if (string.IsNullOrEmpty(userId))
                 {
-                    await Clients.Caller.SendAsync("WithdrawSuccess", new { success = true });
-                    // Po pomyślnej wypłacie, wyślij zaktualizowany balance
-                    await GetBalance();
+ 
+                    await Clients.Caller.SendAsync("WithdrawSuccess", new 
+                    { 
+                        success = false, 
+                        message = "User not authenticated" 
+                    });
+                    return;
                 }
-                else
+
+
+
+                // Pobierz użytkownika
+                var user = await _userManager.GetUserAsync(Context.User!);
+                if (user == null)
                 {
-                    await Clients.Caller.SendAsync("WithdrawSuccess", new { success = false, message = "Unable to withdraw" });
+                    await Clients.Caller.SendAsync("WithdrawSuccess", new 
+                    { 
+                        success = false, 
+                        message = "User not found" 
+                    });
+                    return;
+                }
+
+                // Wykonaj wypłatę
+                var success = await _crashGameService.WithdrawAsync(userId);
+                
+                await Clients.Caller.SendAsync("WithdrawSuccess", new 
+                { 
+                    success = success,
+                    message = success ? "Withdrawal successful" : "Failed to withdraw"
+                });
+            }
+            catch (Exception ex)
+            {
+
+                await Clients.Caller.SendAsync("WithdrawSuccess", new 
+                { 
+                    success = false, 
+                    message = "An error occurred while withdrawing" 
+                });
+            }
+        }
+
+        [Authorize]
+        public async Task GetBalance()
+        {
+            _logger.LogInformation("GetBalance called");
+            
+            try
+            {
+                var user = await _userManager.GetUserAsync(Context.User!);
+                if (user != null)
+                {
+                    _logger.LogInformation($"Sending balance to user {user.Email}: {user.Balance}");
+                    await Clients.Caller.SendAsync("BalanceUpdate", new { balance = (double)user.Balance });
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error withdrawing for user {UserId}", user.Id);
-                await Clients.Caller.SendAsync("Error", "Błąd podczas wypłaty");
+                _logger.LogError(ex, "Error in GetBalance");
+            }
+        }
+
+        [Authorize]
+        public async Task GetGameState()
+        {
+            try
+            {
+                var gameState = _crashGameService.GetGameState();
+                await Clients.Caller.SendAsync("GameUpdate", gameState);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in GetGameState");
             }
         }
 
         public override async Task OnConnectedAsync()
         {
-            var user = await _userManager.GetUserAsync(Context.User);
+            var user = await _userManager.GetUserAsync(Context.User!);
             if (user != null)
             {
-                _logger.LogInformation($"Player {user.UserName} connected to crash hub");
-
+                _logger.LogInformation($"Player {user.Email} connected to crash hub");
+                
+                // Wyślij aktualny stan gry
                 try
                 {
-                    var gameState = await _crashGameService.GetGameStateAsync();
+                    var gameState = _crashGameService.GetGameState();
                     await Clients.Caller.SendAsync("GameUpdate", gameState);
-                    await GetBalance();
+                    
+                    // Wyślij balance
+                    await Clients.Caller.SendAsync("BalanceUpdate", new { balance = (double)user.Balance });
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error sending game state to user {UserId}", user.Id);
+                    _logger.LogError(ex, "Error sending initial data to connected user");
                 }
             }
-
+            
             await base.OnConnectedAsync();
         }
 
         public override async Task OnDisconnectedAsync(Exception? exception)
         {
-            var user = await _userManager.GetUserAsync(Context.User);
+            var user = await _userManager.GetUserAsync(Context.User!);
             if (user != null)
             {
-                _logger.LogInformation($"Player {user.UserName} disconnected from crash hub");
+                _logger.LogInformation($"Player {user.Email} disconnected from crash hub");
             }
-
+            
             if (exception != null)
             {
                 _logger.LogError(exception, "User disconnected with error");
             }
-
+            
             await base.OnDisconnectedAsync(exception);
         }
     }
