@@ -3,7 +3,6 @@ import {
   CrashBet,
   CrashGameUpdate,
   PlaceBetRequest,
-  BalanceUpdate,
   CrashGameState,
   CrashGameActions,
   CrashGamePhase,
@@ -28,7 +27,7 @@ const useCrashGameStore = create<CrashGameStore>((set, get) => ({
   error: null,
   connected: false,
   connection: null,
-  url: "http://localhost:5000",
+  url: process.env.NEXT_PUBLIC_API_URL,
 
 
   setupListeners: () => {

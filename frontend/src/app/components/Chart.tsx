@@ -2,23 +2,8 @@
 import { useEffect, useRef } from 'react';
 import useCrashGameStore from '@/app/stores/CrashGameStore';
 import { CrashGamePhase } from '@/app/types/crash';
+import { CONFIG } from "./chartConfig"
 
-const CONFIG = {
-  width: 500,
-  height: 300,
-  backgroundColor: 0x181a1e,
-  padding: 40,
-  lineColor: 0x10b981,
-  axisColor: 0x4b5563,
-  fontStyle: { fontFamily: 'Arial', fontSize: 10, fill: 0xaaaaaa },
-  multiplierFontStyle: { fontFamily: 'Arial', fontSize: 120, fill: 0x808080, align: 'center' },
-  crashedFontStyle: { fontFamily: 'Arial', fontSize: 75, fill: 0xff0000, align: 'center' },
-  waitFontStyle: { fontFamily: 'Arial', fontSize: 30, fill: 0x888888, align: 'center' },
-  curve: { A: 0.02, B: 1.5, B_GROWTH: 0.01, MAX_B: 3.0 },
-  scaling: { initialMaxTime: 10, initialMaxMultiplier: 1.3, scaleFactor: 1.5, scaleTrigger: 0.8, smoothingFactor: 0.2 },
-  zigzag: { amplitude: 0.001, frequency: 50 },
-  gameplay: { waitBeforeNextRound: 3, crashMessageTimeout: 2000 }
-};
 
 declare global {
   interface Window { PIXI: any; }
@@ -336,7 +321,7 @@ const Wykres = () => {
 
   return (
     <div
-      className="float-left h-[350px] w-3/5 border flex items-center justify-center relative"
+      className="float-left w-3/5 "
       style={{ backgroundColor: 'rgb(24, 26, 30)', borderColor: 'rgb(41, 36, 36)' }}
     >
       <div id="crash-canvas" ref={canvasRef} style={{ width: '100%', height: '100%' }} />

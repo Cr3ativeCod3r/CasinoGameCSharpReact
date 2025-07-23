@@ -22,6 +22,7 @@ namespace backend.Services
 
         // Game state
         CrashGameUpdate GetGameState();
+        Task<List<CrashHistoryDto>> GetCrashHistoryAsync(int count = 20);
         
     }
 }

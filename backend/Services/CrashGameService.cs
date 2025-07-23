@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.SignalR;
 using backend.Hubs;
 using Microsoft.Extensions.DependencyInjection;
+using backend.Utils;
 
 namespace backend.Services
 {
@@ -289,7 +290,10 @@ namespace backend.Services
 
         public void StartGameLoop()
         {
-            var targetCrash = _random.NextDouble() * (10.0 - 1.5) + 1.5;
+            string serverSeed = "secret";
+            string gameId = Guid.NewGuid().ToString();
+
+            double targetCrash = CrashPointCalculator.GetCrashPoint(serverSeed, gameId);
 
             lock (_lock)
             {
@@ -305,9 +309,11 @@ namespace backend.Services
 
             _gameTimer?.Dispose();
             _gameTimer = new System.Timers.Timer(100);
+            _gameTimer.AutoReset = false;
             _gameTimer.Elapsed += async (sender, e) =>
             {
                 bool shouldCrash = false;
+                double currentMultiplier = 0.0;
 
                 lock (_lock)
                 {
@@ -315,7 +321,8 @@ namespace backend.Services
                     {
                         _game.Multiplier += 0.01;
                         _game.XChart += 0.05;
-                        _game.YChart += 0.05;
+                        _game.YChart += 0.1;
+                        currentMultiplier = _game.Multiplier;
 
                         if (_game.Multiplier >= _game.TargetCrash)
                         {
@@ -338,6 +345,12 @@ namespace backend.Services
                     {
                         _logger.LogError(ex, "Error sending game update during game loop");
                     }
+
+                    double newInterval = 50 - (Math.Floor(currentMultiplier) * 5);
+                    if (newInterval < 10) newInterval = 10;
+
+                    _gameTimer.Interval = newInterval;
+                    _gameTimer.Start();
                 }
             };
             _gameTimer.Start();
@@ -348,15 +361,25 @@ namespace backend.Services
         {
             _gameTimer?.Stop();
 
+            CrashGameState? gameCopy;
+            Dictionary<string, CrashBet> betsCopy;
+
             lock (_lock)
             {
                 if (_game != null)
                 {
                     _game.Active = false;
                 }
+                gameCopy = _game;
+                betsCopy = new Dictionary<string, CrashBet>(_bets);
             }
 
             _logger.LogInformation("Game crashed!");
+
+            if (gameCopy != null)
+            {
+                await SaveCrashHistoryAsync(gameCopy, betsCopy);
+            }
 
             try
             {
@@ -434,5 +457,89 @@ namespace backend.Services
             _bettingTimer?.Dispose();
             _gameTimer?.Dispose();
         }
+
+
+
+
+        private async Task SaveCrashHistoryAsync(CrashGameState game, Dictionary<string, CrashBet> bets)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+                var totalBetAmount = bets.Values.Sum(b => b.BetAmount);
+                var totalWithdrawals = bets.Values.Count(b => b.InGame.Withdrew);
+                var totalProfit = bets.Values
+                    .Where(b => b.InGame.Withdrew)
+                    .Sum(b => (decimal)b.InGame.WithdrawProfit);
+
+                var betHistoryList = bets.Values.Select(b => new CrashBetHistoryDto
+                {
+                    PlayerName = b.PlayerName,
+                    BetAmount = b.BetAmount,
+                    Withdrew = b.InGame.Withdrew,
+                    WithdrawMultiplier = b.InGame.WithdrawMultiplier,
+                    WithdrawProfit = b.InGame.WithdrawProfit
+                }).ToList();
+
+                var crashHistory = new CrashHistory
+                {
+                    CrashedAt = DateTime.UtcNow,
+                    CrashPoint = game.TargetCrash,
+                    TotalBets = bets.Count,
+                    TotalBetAmount = totalBetAmount,
+                    TotalWithdrawals = totalWithdrawals,
+                    TotalProfit = totalProfit,
+                    BetsJson = System.Text.Json.JsonSerializer.Serialize(betHistoryList)
+                };
+
+                dbContext.CrashHistories.Add(crashHistory);
+                await dbContext.SaveChangesAsync();
+
+                _logger.LogInformation($"Crash history saved - CrashPoint: {game.TargetCrash}, TotalBets: {bets.Count}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving crash history");
+            }
+        }
+
+
+        public async Task<List<CrashHistoryDto>> GetCrashHistoryAsync(int count = 20)
+        {
+            try
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+                var histories = await dbContext.CrashHistories
+                    .OrderByDescending(ch => ch.CrashedAt)
+                    .Take(count)
+                    .ToListAsync();
+
+                var historyDtos = histories.Select(h => new CrashHistoryDto
+                {
+                    Id = h.Id,
+                    CrashedAt = h.CrashedAt,
+                    CrashPoint = h.CrashPoint,
+                    TotalBets = h.TotalBets,
+                    TotalBetAmount = h.TotalBetAmount,
+                    TotalWithdrawals = h.TotalWithdrawals,
+                    TotalProfit = h.TotalProfit,
+                    Bets = string.IsNullOrEmpty(h.BetsJson)
+                        ? new List<CrashBetHistoryDto>()
+                        : System.Text.Json.JsonSerializer.Deserialize<List<CrashBetHistoryDto>>(h.BetsJson) ?? new List<CrashBetHistoryDto>()
+                }).ToList();
+
+                return historyDtos;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving crash history");
+                return new List<CrashHistoryDto>();
+            }
+        }
+
     }
 }

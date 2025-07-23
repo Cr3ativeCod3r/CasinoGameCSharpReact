@@ -1,13 +1,37 @@
 'use client'
 import useCrashGameStore, { 
   getBetsArray, 
-  getFormattedMultiplier 
 } from '@/app/stores/CrashGameStore';
+import { CrashGamePhase } from '@/app/types/crash';
 
 const PlayerInGame = () => {
-  const { gameActive, multiplier } = useCrashGameStore();
+  const { gameActive, multiplier, phase } = useCrashGameStore();
   const betsArray = getBetsArray(useCrashGameStore.getState());
-  const formattedMultiplier = getFormattedMultiplier(useCrashGameStore.getState());
+
+  const getRowColor = (bet) => {
+    if (bet.inGame.withdrew) {
+      return bet.inGame.withdrawProfit > bet.betAmount ? 'text-[rgb(40,117,40)]' : 'text-red-400';
+    }
+    
+    if (phase === CrashGamePhase.Crashed) {
+      return 'text-red-400';
+    }
+    
+    return 'text-[rgb(200,130,0)]';
+  };
+
+
+  const shouldShowProfit = (bet) => {
+    return bet.inGame.withdrew || phase === CrashGamePhase.Crashed;
+  };
+
+  const getProfit = (bet) => {
+    if (bet.inGame.withdrew) {
+      const profit = bet.inGame.withdrawProfit - bet.betAmount;
+      return (profit > 0 ? '+' : '') + profit.toLocaleString();
+    }
+    return `-${bet.betAmount.toLocaleString()}`;
+  };
 
   return (
     <div 
@@ -33,7 +57,7 @@ const PlayerInGame = () => {
         </table>
       </div>
       
-      <div className="overflow-y-auto max-h-96">
+      <div className="overflow-y-auto">
         <table className="w-full border-collapse">
           <tbody>
             {betsArray.length === 0 ? (
@@ -43,46 +67,31 @@ const PlayerInGame = () => {
                 </td>
               </tr>
             ) : (
-              betsArray.map((bet) => (
-                <tr key={bet.playerID} className="border-b" style={{ borderColor: 'rgb(41, 36, 36)' }}>
-                  <td className="text-xs text-white w-36 text-center p-2">
-                    {bet.playerName}
-                  </td>
-                  <td className="text-xs text-white w-12 text-center p-2">
-                    {bet.inGame.withdrew ? '✓' : ''}
-                  </td>
-                  <td className="text-xs text-white w-36 text-center p-2">
-                    {bet.betAmount.toLocaleString()}
-                  </td>
-                  <td className={`text-xs w-36 text-center p-2 ${
-                    bet.inGame.withdrew 
-                      ? bet.inGame.withdrawProfit > bet.betAmount 
-                        ? 'text-green-400' 
-                        : 'text-red-400'
-                      : gameActive 
-                        ? 'text-yellow-400' 
-                        : 'text-red-400'
-                  }`}>
-                    {bet.inGame.withdrew 
-                      ? (bet.inGame.withdrawProfit > bet.betAmount ? '+' : '') + 
-                        (bet.inGame.withdrawProfit - bet.betAmount).toLocaleString()
-                      : gameActive 
-                        ? `${(bet.betAmount * multiplier).toLocaleString()} (${formattedMultiplier})`
-                        : `-${bet.betAmount.toLocaleString()}`
-                    }
-                  </td>
-                </tr>
-              ))
+              betsArray.map((bet) => {
+                const rowColor = getRowColor(bet);
+                
+                return (
+                  <tr key={bet.playerID}>
+                    <td className={`text-md w-36 text-center p-2 ${rowColor}`}>
+                      {bet.playerName}
+                    </td>
+                    <td className={`text-md w-12 text-center p-2 ${rowColor}`}>
+                      {bet.inGame.withdrew ? bet.inGame.withdrawMultiplier.toFixed(2) : '-'}
+                    </td>
+                    <td className={`text-md w-36 text-center p-2 ${rowColor}`}>
+                      {bet.betAmount.toLocaleString()}
+                    </td>
+                    <td className={`text-md w-36 text-center p-2 ${rowColor}`}>
+                      {shouldShowProfit(bet) ? getProfit(bet) : '-'}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
-      
-      {/* Stats */}
-      <div className="text-xs text-gray-400 p-2 border-t" style={{ borderColor: 'rgb(41, 36, 36)' }}>
-        Total players: {betsArray.length} | 
-        Cashed out: {betsArray.filter(bet => bet.inGame.withdrew).length}
-      </div>
+    
     </div>
   );
 };

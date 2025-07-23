@@ -1,14 +1,12 @@
 'use client'
-import useCrashGameStore, { getFormattedBalance } from '@/app/stores/CrashGameStore';
+import useCrashGameStore from '@/app/stores/CrashGameStore';
 import useAuthStore from '@/app/stores/AuthStore';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 const Navbar = () => {
   const router = useRouter();
-  const {
-    balance,
-  } = useCrashGameStore();
+  const { balance } = useCrashGameStore();
   const {
     user,
     isAuthenticated,
@@ -26,7 +24,7 @@ const Navbar = () => {
         CSGOcrash
      
         <span className="mr-2 ml-[450px] text-white text-[20px]">
-          Coins {Math.floor(balance)}
+          Coins {Math.floor(balance).toLocaleString('en-US')}
         </span>
 
       </div>

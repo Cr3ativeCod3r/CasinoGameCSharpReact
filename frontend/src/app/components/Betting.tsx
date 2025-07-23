@@ -83,9 +83,9 @@ const Betting = () => {
         const currentPayout = (parseFloat(currentUserBet.betAmount.toString()) * multiplier).toFixed(2);
         return (
           <>
-            <span className="block text-4xl font-bold">CASH OUT</span>
-            <span className="block text-3xl mt-2 font-mono">
-              @{currentPayout}
+            <span className="block text-2xl ">Cash out</span>
+            <span className="block text-2xl mt-2 ">
+              @{Math.floor(parseFloat(currentPayout)).toLocaleString('en-US')} coins
             </span>
           </>
         );
@@ -110,9 +110,14 @@ const Betting = () => {
 
   const getButtonColor = () => {
     if (!connected || !isAuthenticated || !userId) return '#4B5563';
-    if (canWithdrawState) return '#F97316';
-    if (canPlaceBetState) return '#10B981';
+    if (canWithdrawState) return 'rgb(200, 130, 0)';
+    if (canPlaceBetState) return 'rgb(200, 130, 0)';
     return '#4B5563';
+  };
+
+  const getButtonHoverColor = () => {
+    // ciemniejszy odcień
+    return 'rgb(170, 110, 0)';
   };
 
   const getButtonAction = () => {
@@ -125,7 +130,7 @@ const Betting = () => {
   if (!isAuthenticated) {
     return (
       <div
-        className="float-right w-2/5 h-[350px] border text-white p-2 flex items-center justify-center"
+        className="float-right w-2/5 h-[200px] border text-white p-2 flex items-center justify-center"
         style={{
           backgroundColor: 'rgb(24, 26, 30)',
           borderColor: 'rgb(41, 36, 36)',
@@ -143,7 +148,7 @@ const Betting = () => {
 
   return (
     <div
-      className="h-110 border text-white p-4 flex flex-col"
+      className="pt-1 border-t text-white px-2 h-full flex flex-col"
       style={{
         backgroundColor: 'rgb(24, 26, 30)',
         borderColor: 'rgb(41, 36, 36)',
@@ -159,7 +164,7 @@ const Betting = () => {
             type="number"
             value={betInput}
             onChange={(e) => setBetInput(e.target.value)}
-            className="h-8 w-full bg-white text-black border border-gray-600 p-2 rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
+            className="h-10 w-full bg-white text-black border border-gray-600 p-2 rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
             placeholder="Bet amount"
             disabled={phase !== CrashGamePhase.Betting || hasActiveBet || !isAuthenticated}
           />
@@ -190,9 +195,19 @@ const Betting = () => {
       <button
         onClick={getButtonAction()}
         disabled={loading || !connected || !isAuthenticated || (!canPlaceBetState && !canWithdrawState)}
-        className=" mt-4 rounded-xl text-3xl text-white cursor-pointer h-[200px] flex flex-col items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+        className="mt-4 rounded-xl text-3xl text-white cursor-pointer h-[200px] flex flex-col items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
         style={{
           backgroundColor: getButtonColor(),
+        }}
+        onMouseOver={e => {
+          if (!e.currentTarget.disabled && (canPlaceBetState || canWithdrawState)) {
+            e.currentTarget.style.backgroundColor = getButtonHoverColor();
+          }
+        }}
+        onMouseOut={e => {
+          if (!e.currentTarget.disabled && (canPlaceBetState || canWithdrawState)) {
+            e.currentTarget.style.backgroundColor = getButtonColor();
+          }
         }}
       >
         {getButtonContent()}

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useLayoutEffect, useRef } from 'react';
 import useChatStore from '@/app/stores/ChatStore';
 import useAuthStore from '@/app/stores/AuthStore';
 import useConnectionStore from '@/app/stores/ConnectionStore';
@@ -16,13 +16,9 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
   } = useChatStore();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = (): void => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
+  
+  useLayoutEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
   }, [messages]);
 
   const handleSubmit = (e: React.FormEvent | React.KeyboardEvent): void => {
@@ -32,48 +28,38 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
 
   if (!isAuthenticated || !user) {
     return (
-      <div className={`flex-1 ${className || ''}`} style={style}>
+      <div className={`flex-1 flex ${className || ''}`} style={style}>
         <div
-          className="h-64 border border-black overflow-y-scroll text-white p-2 flex items-center justify-center"
+          className="h-full w-full border border-black overflow-y-scroll text-white p-2 flex items-center justify-center"
           style={{ backgroundColor: 'rgb(24, 26, 30)' }}
         >
-          <p className="text-gray-400">Musisz być zalogowany, aby korzystać z chatu.</p>
+          <p className="text-gray-400 text-sm">Musisz być zalogowany, aby korzystać z chatu.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`flex-1 ${className || ''}`} style={style}>
-      <div className="mb-2">
-        <span className={`text-xs px-2 py-1 rounded ${isConnected ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}>
-          {isConnected ? 'Połączono' : 'Rozłączono'}
-        </span>
-        {user && (
-          <span className="ml-2 text-xs text-gray-400">
-            Zalogowany jako: {user.nickName}
-          </span>
-        )}
-      </div>
-
-      <div
-        className="h-full border border-black overflow-y-scroll text-white p-2"
-        style={{ backgroundColor: 'rgb(24, 26, 30)' }}
-      >
+    <div className={`flex-1 flex flex-col ${className || ''}`} style={style}>
+  
+    <div
+  className="min-h-0 border border-black overflow-y-scroll text-white p-1"
+  style={{ backgroundColor: 'rgb(24, 26, 30)', maxHeight: 'calc(100% - 60px)' }}
+>
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-gray-400 text-sm">Brak wiadomości</p>
+            <p className="text-gray-400 text-xs">Brak wiadomości</p>
           </div>
         ) : (
           messages.map((msg, index) => (
-            <div key={msg.id || index} className="mb-1 text-xs">
-              <span className="text-gray-400 text-xs">
+            <div key={msg.id || index} className="mb-1 text-xs leading-tight">
+              <span className="text-gray-500 mr-1">
                 {msg.createdAt}
               </span>
-              <span className={`ml-2 ${msg.userId === user.id ? 'text-blue-400' : 'text-orange-400'}`}>
+              <span className={`mr-1 font-medium ${msg.userId === user.id ? 'text-blue-400' : 'text-orange-400'}`}>
                 {msg.userNick}:
               </span>
-              <span className="ml-2">{msg.content}</span>
+              <span className="break-words">{msg.content}</span>
             </div>
           ))
         )}
@@ -81,31 +67,27 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
       </div>
 
       {error && (
-        <div className="text-red-400 text-xs mt-2 px-2">
+        <div className="text-red-400 text-xs mt-1 px-1">
           {error}
         </div>
       )}
 
-      <form className="mt-3 flex" onSubmit={handleSubmit}>
+      <form className="mt-2 flex" onSubmit={handleSubmit}>
         <input
           type="text"
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) handleSubmit(e);
-          }}
-          placeholder={isConnected ? "Napisz wiadomość..." : "Rozłączono..."}
-          className="p-2 text-black flex-1"
-          style={{
-            backgroundColor: '#bbb1b1'
-          }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) handleSubmit(e); }}
+          placeholder={isConnected ? "Wiadomość..." : "Rozłączono..."}
+          className="p-2 text-sm text-black flex-1 rounded-l"
+          style={{ backgroundColor: '#bbb1b1' }}
           disabled={!isConnected}
           maxLength={500}
         />
         <button
           type="submit"
           disabled={!isConnected || !inputMessage.trim()}
-          className="ml-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          className="ml-1 px-3 py-1 text-sm bg-blue-600 text-white rounded-r hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
         >
           Wyślij
         </button>
