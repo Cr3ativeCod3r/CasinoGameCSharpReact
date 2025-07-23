@@ -1,7 +1,10 @@
+
 # 🧩 Crash Game
 
-Projekt webowej aplikacji gry hazardowej z funkcjonalnościami realtime (SignalR), autoryzacją użytkowników (JWT) oraz frontendem w React (TypeScript, MobX).
+Projekt webowej aplikacji gry hazardowej z funkcjonalnościami realtime (SignalR), autoryzacją użytkowników (JWT) oraz frontendem w React (TypeScript, Zustand).
 
+#Preview Beta
+<img width="1467" height="714" alt="Image" src="https://github.com/user-attachments/assets/e433b981-eb10-4dc9-9167-3d1c241b7dac" />
 ---
 
 ## 📚 Stack technologiczny
@@ -11,14 +14,14 @@ Projekt webowej aplikacji gry hazardowej z funkcjonalnościami realtime (SignalR
 - **Entity Framework Core** z bazą danych MySQL
 - **ASP.NET Identity** (rejestracja, logowanie, zarządzanie użytkownikami)
 - **JWT** (JSON Web Tokens) – autoryzacja API i SignalR
-- **SignalR** – komunikacja w czasie rzeczywistym (chat)
+- **SignalR** – komunikacja w czasie rzeczywistym (chat, gra crash)
 - **CORS** – obsługa połączeń z frontendu
 - **Swagger** – interaktywna dokumentacja API
 
 ### 💻 Frontend (React)
 - **React 19.x**
 - **TypeScript**
-- **MobX** – zarządzanie stanem aplikacji
+- **Zustand** – zarządzanie stanem aplikacji
 - **SignalR client** (`@microsoft/signalr`) – obsługa połączeń realtime
 - **Tailwind CSS / CSS Modules** – stylowanie UI
 
