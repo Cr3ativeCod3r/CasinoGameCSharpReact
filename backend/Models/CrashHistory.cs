@@ -35,7 +35,7 @@ namespace backend.Models
         public decimal TotalProfit { get; set; }
         public List<CrashBetHistoryDto> Bets { get; set; } = new();
     }
-    
+
     public class CrashBetHistoryDto
     {
         public string PlayerName { get; set; } = string.Empty;
@@ -43,5 +43,7 @@ namespace backend.Models
         public bool Withdrew { get; set; }
         public double WithdrawMultiplier { get; set; }
         public double WithdrawProfit { get; set; }
+        public string PlayerId { get; set; }
+        
     }
 }

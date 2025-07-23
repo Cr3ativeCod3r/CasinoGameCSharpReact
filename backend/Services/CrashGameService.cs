@@ -475,6 +475,7 @@ namespace backend.Services
                 var betHistoryList = bets.Values.Select(b => new CrashBetHistoryDto
                 {
                     PlayerName = b.PlayerName,
+                    PlayerId = b.PlayerID,
                     BetAmount = b.BetAmount,
                     Withdrew = b.InGame.Withdrew,
                     WithdrawMultiplier = b.InGame.WithdrawMultiplier,
