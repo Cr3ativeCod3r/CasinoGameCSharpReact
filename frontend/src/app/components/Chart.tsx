@@ -1,9 +1,10 @@
 'use client'
 import { useEffect, useRef } from 'react';
 import useCrashGameStore from '@/app/stores/CrashGameStore';
+import useAuthStore from '@/app/stores/AuthStore';
 import { CrashGamePhase } from '@/app/types/crash';
+import { getHasActiveBet, getCurrentUserBet } from '@/app/stores/CrashGameStore';
 import { CONFIG } from "./chartConfig"
-
 
 declare global {
   interface Window { PIXI: any; }
@@ -29,6 +30,7 @@ class CrashGraphReact {
   private targetMaxMultiplier: number = CONFIG.scaling.initialMaxMultiplier;
   private displayMaxTime: number = CONFIG.scaling.initialMaxTime;
   private displayMaxMultiplier: number = CONFIG.scaling.initialMaxMultiplier;
+  private hasActiveBet: boolean = false;
 
   constructor(private containerId: string) { }
 
@@ -79,6 +81,7 @@ class CrashGraphReact {
     this.currentMultiplier = 1.0;
     this.isRunning = false;
     this.crashed = false;
+    this.hasActiveBet = false;
     this.targetMaxTime = CONFIG.scaling.initialMaxTime;
     this.targetMaxMultiplier = CONFIG.scaling.initialMaxMultiplier;
     this.displayMaxTime = this.targetMaxTime;
@@ -100,19 +103,25 @@ class CrashGraphReact {
     this._updateAxes();
   }
 
-  startAnimation(): void {
+  startAnimation(hasActiveBet: boolean = false): void {
     if (this.isRunning) return;
     this._resetState();
     this.isRunning = true;
     this.crashed = false;
+    this.hasActiveBet = hasActiveBet;
     if (this.graphLine) this.graphLine.visible = true;
-    if (this.multiplierText) this.multiplierText.visible = true;
+    if (this.multiplierText) {
+      this.multiplierText.visible = true;
+      // Ustaw kolor mnożnika w zależności od tego czy user ma aktywny zakład
+      this.multiplierText.style.fill = hasActiveBet ? CONFIG.multiplierFontStyleActive.fill : CONFIG.multiplierFontStyle.fill;
+    }
   }
 
-  update(elapsedTime: number, currentMultiplier: number): void {
+  update(elapsedTime: number, currentMultiplier: number, hasActiveBet: boolean = false): void {
     if (!this.isRunning || this.crashed) return;
     this.elapsedTime = elapsedTime;
     this.currentMultiplier = currentMultiplier;
+    this.hasActiveBet = hasActiveBet;
     this._adjustScaleTargets();
     this._drawGraph();
     this._updateAxes();
@@ -127,6 +136,10 @@ class CrashGraphReact {
     if (this.crashMultiplierText) {
       this.crashMultiplierText.text = `@${finalMultiplier.toFixed(2)}x`;
       this.crashMultiplierText.visible = true;
+    }
+    if (this.graphLine) {
+      this.graphLine.clear();
+      this.graphLine.visible = false;
     }
   }
 
@@ -152,7 +165,9 @@ class CrashGraphReact {
 
   private _drawGraph(): void {
     if (!this.graphLine) return;
-    this.graphLine.clear().stroke({ width: 4, color: CONFIG.lineColor });
+    // Ustaw kolor linii w zależności od tego czy user ma aktywny zakład
+    const lineColor = this.hasActiveBet ? CONFIG.lineColorActive : CONFIG.lineColor;
+    this.graphLine.clear().stroke({ width: 4, color: lineColor });
     const segments = Math.max(10, Math.min(100, this.elapsedTime * 10));
     const maxT = Math.min(this.elapsedTime, this.displayMaxTime);
     if (maxT <= 0) return;
@@ -202,6 +217,8 @@ class CrashGraphReact {
   private _updateMultiplierText(): void {
     if (this.multiplierText) {
       this.multiplierText.text = `${this.currentMultiplier.toFixed(2)}x`;
+      // Aktualizuj kolor mnożnika
+      this.multiplierText.style.fill = this.hasActiveBet ? CONFIG.multiplierFontStyleActive.fill : CONFIG.multiplierFontStyle.fill;
     }
   }
 
@@ -245,6 +262,7 @@ const Wykres = () => {
   const loadingRef = useRef<HTMLDivElement | null>(null);
 
   const { phase, multiplier, xChart, timeRemaining } = useCrashGameStore();
+  const { user } = useAuthStore();
 
   useEffect(() => {
     const loadPixiScript = (): Promise<void> => new Promise((resolve) => {
@@ -268,9 +286,14 @@ const Wykres = () => {
 
     const updateGraphVisuals = (currentState: { phase: CrashGamePhase, multiplier: number, timeRemaining: number }) => {
       if (!crashGraphRef.current) return;
+      
+      // Sprawdź czy użytkownik ma aktywny zakład
+      const userId = useAuthStore.getState().user?.id;
+      const hasActiveBet = getHasActiveBet(currentState, userId);
+      
       switch (currentState.phase) {
         case CrashGamePhase.Running:
-          crashGraphRef.current.startAnimation();
+          crashGraphRef.current.startAnimation(hasActiveBet);
           break;
         case CrashGamePhase.Crashed:
           crashGraphRef.current.showCrashed(currentState.multiplier);
@@ -295,9 +318,19 @@ const Wykres = () => {
 
   useEffect(() => {
     if (!crashGraphRef.current) return;
+    
+    // Sprawdź czy użytkownik ma aktywny zakład
+    const state = useCrashGameStore.getState();
+    const currentBet = getCurrentUserBet(state, user?.id);
+    const hasActiveBet = getHasActiveBet(state, user?.id);
+    
+    // Sprawdź czy użytkownik wypłacił podczas gry
+    const hasWithdrawn = currentBet?.inGame?.withdrew || false;
+    
     switch (phase) {
       case CrashGamePhase.Running:
-        crashGraphRef.current.startAnimation();
+        // Jeśli użytkownik wypłacił, przekaż false aby zmienić kolor na szary
+        crashGraphRef.current.startAnimation(hasActiveBet && !hasWithdrawn);
         break;
       case CrashGamePhase.Crashed:
         crashGraphRef.current.showCrashed(multiplier);
@@ -307,17 +340,23 @@ const Wykres = () => {
         crashGraphRef.current.showWaiting(timeStr);
         break;
     }
-  }, [phase]);
+  }, [phase, user?.id]);
 
   useEffect(() => {
     if (!crashGraphRef.current) return;
+    const state = useCrashGameStore.getState();
+    const currentBet = getCurrentUserBet(state, user?.id);
+    const hasActiveBet = getHasActiveBet(state, user?.id);
+  
+    const hasWithdrawn = currentBet?.inGame?.withdrew || false;
+    
     if (phase === CrashGamePhase.Running) {
-      crashGraphRef.current.update(xChart, multiplier);
+      crashGraphRef.current.update(xChart, multiplier, hasActiveBet && !hasWithdrawn);
     } else if (phase === CrashGamePhase.Betting) {
       const timeStr = Math.max(0, timeRemaining).toFixed(1) + 's';
       crashGraphRef.current.showWaiting(timeStr);
     }
-  }, [multiplier, xChart, timeRemaining]);
+  }, [multiplier, xChart, timeRemaining, user?.id]);
 
   return (
     <div

@@ -38,7 +38,7 @@ namespace backend.Hubs
                     });
                     return;
                 }
-                var success = await _crashGameService.PlaceBetAsync(userId, user.UserName ?? user.Email ?? "Unknown", request.BetAmount);
+                var success = await _crashGameService.PlaceBetAsync(userId, user.NickName ?? user.Email ?? "Unknown", request.BetAmount);
                 
                 await Clients.Caller.SendAsync("BetPlaced", new 
                 { 

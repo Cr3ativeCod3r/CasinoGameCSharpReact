@@ -4,12 +4,19 @@ export const CONFIG = {
   backgroundColor: 0x181a1e,
   padding: 40,
   lineColor: 0x808080,
+  lineColorActive: 0x00ff00,
   axisColor: 0x4b5563,
   fontStyle: { fontFamily: "Arial", fontSize: 10, fill: 0xaaaaaa },
   multiplierFontStyle: {
     fontFamily: "Arial",
     fontSize: 120,
     fill: 0x808080,
+    align: "center",
+  },
+  multiplierFontStyleActive: {
+    fontFamily: "Arial",
+    fontSize: 120,
+    fill: 0x00ff00,
     align: "center",
   },
   crashedFontStyle: {

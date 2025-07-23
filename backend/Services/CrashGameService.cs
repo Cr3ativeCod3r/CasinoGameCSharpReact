@@ -190,8 +190,6 @@ namespace backend.Services
                     };
                 }
 
-                _logger.LogInformation($"Bet placed - PlayerID: {playerID}, PlayerName: {playerName}, BetAmount: {betAmount}");
-
                 await OnBalanceUpdate(playerID, user.Balance);
 
                 return true;
