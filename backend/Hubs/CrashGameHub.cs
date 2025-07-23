@@ -8,7 +8,7 @@ using backend.Data;
 
 namespace backend.Hubs
 {
-    [Authorize]
+    // [Authorize]
     public partial class CrashGameHub : Hub
     {
         private readonly ICrashGameService _crashGameService;

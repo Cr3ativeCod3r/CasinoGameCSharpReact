@@ -14,8 +14,6 @@ namespace backend.Services
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<CrashGameService> _logger;
         private readonly IHubContext<CrashGameHub>? _hubContext;
-
-        // Globalne zmienne
         private bool _bettingOpen = true;
         private const double INITIAL_TIME = 10.0;
         private CrashTimer _timer;
@@ -25,8 +23,6 @@ namespace backend.Services
         private System.Timers.Timer? _gameTimer;
         private readonly Random _random = new();
         private readonly object _lock = new();
-
-        // Flaga do sprawdzenia czy gra została już uruchomiona
         private bool _gameStarted = false;
 
         public event Func<CrashGameUpdate, Task> OnGameUpdate = delegate { return Task.CompletedTask; };
@@ -43,7 +39,6 @@ namespace backend.Services
             _hubContext = hubContext;
             _timer = new CrashTimer(INITIAL_TIME);
 
-            // Jeśli mamy HubContext, podłącz eventy bezpośrednio
             if (_hubContext != null)
             {
                 ConnectSignalREvents();
@@ -82,7 +77,6 @@ namespace backend.Services
             {
                 try
                 {
-                    // Poprawka - używamy tylko jednej nazwy właściwości
                     var balanceData = new
                     {
                         balance = (double)balance,
@@ -99,8 +93,6 @@ namespace backend.Services
 
             _logger.LogInformation("SignalR events connected to CrashGameService");
         }
-
-        // Publiczna metoda do uruchomienia gry (wywoływana tylko raz)
         public void StartGameIfNotStarted()
         {
             lock (_lock)
@@ -151,7 +143,6 @@ namespace backend.Services
 
         public async Task<bool> PlaceBetAsync(string playerID, string playerName, decimal betAmount)
         {
-            // Walidacja danych wejściowych
             if (string.IsNullOrEmpty(playerID) || string.IsNullOrEmpty(playerName) || betAmount <= 0)
             {
                 return false;
@@ -170,7 +161,7 @@ namespace backend.Services
             {
                 using var scope = _scopeFactory.CreateScope();
                 var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-                
+
                 var user = await userManager.FindByIdAsync(playerID);
                 if (user == null)
                 {
@@ -184,7 +175,6 @@ namespace backend.Services
                     return false;
                 }
 
-                // Odejmij kwotę od salda
                 user.Balance -= betAmount;
                 await userManager.UpdateAsync(user);
 
@@ -198,7 +188,7 @@ namespace backend.Services
                         InGame = new CrashInGameData()
                     };
                 }
-                
+
                 _logger.LogInformation($"Bet placed - PlayerID: {playerID}, PlayerName: {playerName}, BetAmount: {betAmount}");
 
                 await OnBalanceUpdate(playerID, user.Balance);
@@ -214,7 +204,6 @@ namespace backend.Services
 
         public async Task<bool> WithdrawAsync(string playerID)
         {
-            _logger.LogInformation($"WithdrawAsync called for player {playerID}");
 
             if (string.IsNullOrEmpty(playerID))
             {
@@ -233,7 +222,6 @@ namespace backend.Services
                     _game == null ||
                     !_game.Active)
                 {
-                    _logger.LogWarning($"Cannot withdraw for player {playerID}: bet exists={_bets.ContainsKey(playerID)}, already withdrew={bet?.InGame.Withdrew}, game active={_game?.Active}");
                     return false;
                 }
 
@@ -243,7 +231,6 @@ namespace backend.Services
 
             if (!gameActive)
             {
-                _logger.LogWarning($"Cannot withdraw for player {playerID}: game not active");
                 return false;
             }
 
@@ -258,20 +245,14 @@ namespace backend.Services
                     bet.InGame.WithdrawMultiplier = currentMultiplier;
                     bet.InGame.WithdrawProfit = profit;
                 }
-
-                // Dodaj zysk do salda gracza
                 using var scope = _scopeFactory.CreateScope();
                 var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-                
+
                 var user = await userManager.FindByIdAsync(playerID);
                 if (user != null)
                 {
                     user.Balance += (decimal)profit;
                     await userManager.UpdateAsync(user);
-
-                    _logger.LogInformation($"Player {bet.PlayerName} withdrew at {currentMultiplier:F2}x for profit: {profit:F2}, new balance: {user.Balance}");
-
-                    // Wyślij balance update
                     await OnBalanceUpdate(playerID, user.Balance);
                 }
 
@@ -293,7 +274,7 @@ namespace backend.Services
             {
                 using var scope = _scopeFactory.CreateScope();
                 var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
-                
+
                 var user = await userManager.FindByIdAsync(playerID);
                 var balance = user?.Balance ?? 0m;
                 _logger.LogInformation($"GetUserBalanceAsync for {playerID}: {balance}");
@@ -323,7 +304,7 @@ namespace backend.Services
             }
 
             _gameTimer?.Dispose();
-            _gameTimer = new System.Timers.Timer(50); // Zwiększone z 10ms na 50ms dla stabilności
+            _gameTimer = new System.Timers.Timer(100);
             _gameTimer.Elapsed += async (sender, e) =>
             {
                 bool shouldCrash = false;
@@ -332,7 +313,7 @@ namespace backend.Services
                 {
                     if (_game != null && _game.Active && _game.Multiplier < _game.TargetCrash)
                     {
-                        _game.Multiplier += 0.05; // Zwiększone przyrosty dla płynności
+                        _game.Multiplier += 0.01;
                         _game.XChart += 0.05;
                         _game.YChart += 0.05;
 
@@ -380,8 +361,6 @@ namespace backend.Services
             try
             {
                 await OnGameCrashed();
-
-                // Wyślij ostateczną informację o stanie gry
                 await OnGameUpdate(GetGameState());
             }
             catch (Exception ex)
@@ -389,8 +368,7 @@ namespace backend.Services
                 _logger.LogError(ex, "Error sending crash notifications");
             }
 
-            // Reset gry po krótkim opóźnieniu
-            await Task.Delay(5000); // Zwiększone opóźnienie
+            await Task.Delay(5000);
             await ResetGameAsync();
         }
 
@@ -431,7 +409,7 @@ namespace backend.Services
                 betsCopy = new Dictionary<string, CrashBet>(_bets);
                 gameCopy = _game;
                 bettingOpen = _bettingOpen;
-                timeRemaining = Math.Max(0, _timer.TimeRemaining); 
+                timeRemaining = Math.Max(0, _timer.TimeRemaining);
             }
 
             var gameUpdate = new CrashGameUpdate
@@ -444,12 +422,12 @@ namespace backend.Services
                 BettingOpen = bettingOpen,
                 GameActive = gameCopy?.Active ?? false
             };
-            
+
             _logger.LogDebug($"Game state - Bets count: {betsCopy.Count}, BettingOpen: {bettingOpen}, GameActive: {gameUpdate.GameActive}");
 
             return gameUpdate;
         }
-        
+
         public void Dispose()
         {
             _logger.LogInformation("Disposing CrashGameService...");

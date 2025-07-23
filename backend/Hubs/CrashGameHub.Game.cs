@@ -28,10 +28,6 @@ namespace backend.Hubs
                     });
                     return;
                 }
-
-
-
-                // Pobierz użytkownika
                 var user = await _userManager.GetUserAsync(Context.User!);
                 if (user == null)
                 {
@@ -42,8 +38,6 @@ namespace backend.Hubs
                     });
                     return;
                 }
-
-                // Umieść zakład
                 var success = await _crashGameService.PlaceBetAsync(userId, user.UserName ?? user.Email ?? "Unknown", request.BetAmount);
                 
                 await Clients.Caller.SendAsync("BetPlaced", new 
@@ -67,8 +61,6 @@ namespace backend.Hubs
         [Authorize]
         public async Task Withdraw()
         {
-       
-            
             try
             {
                 var userId = Context.UserIdentifier;
@@ -82,10 +74,6 @@ namespace backend.Hubs
                     });
                     return;
                 }
-
-
-
-                // Pobierz użytkownika
                 var user = await _userManager.GetUserAsync(Context.User!);
                 if (user == null)
                 {
@@ -96,8 +84,6 @@ namespace backend.Hubs
                     });
                     return;
                 }
-
-                // Wykonaj wypłatę
                 var success = await _crashGameService.WithdrawAsync(userId);
                 
                 await Clients.Caller.SendAsync("WithdrawSuccess", new 
@@ -136,8 +122,6 @@ namespace backend.Hubs
                 _logger.LogError(ex, "Error in GetBalance");
             }
         }
-
-        [Authorize]
         public async Task GetGameState()
         {
             try
@@ -158,13 +142,10 @@ namespace backend.Hubs
             {
                 _logger.LogInformation($"Player {user.Email} connected to crash hub");
                 
-                // Wyślij aktualny stan gry
                 try
                 {
                     var gameState = _crashGameService.GetGameState();
                     await Clients.Caller.SendAsync("GameUpdate", gameState);
-                    
-                    // Wyślij balance
                     await Clients.Caller.SendAsync("BalanceUpdate", new { balance = (double)user.Balance });
                 }
                 catch (Exception ex)

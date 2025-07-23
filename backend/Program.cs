@@ -45,6 +45,7 @@ builder.Services.AddAuthentication(options => {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
+
 .AddJwtBearer(options => {
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -56,21 +57,25 @@ builder.Services.AddAuthentication(options => {
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!))
     };
-
-    // Konfiguracja dla SignalR - token z query string
-    options.Events = new JwtBearerEvents
+ options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
         {
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
-            
-            // Endpoint dla CrashHub
+
             if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/crashHub"))
             {
                 context.Token = accessToken;
             }
-            
+
+            return Task.CompletedTask;
+        },
+
+        // Jeśli token nie jest obecny, nie rzucaj wyjątku
+        OnAuthenticationFailed = context =>
+        {
+            context.NoResult(); // << zapobiega rzuceniu 401
             return Task.CompletedTask;
         }
     };
@@ -95,30 +100,24 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IMessageService, MessageService>();
 
-// Rejestracja CrashGameService jako Singleton
-// Teraz używa IServiceScopeFactory do dostępu do scoped services
 builder.Services.AddSingleton<ICrashGameService, CrashGameService>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// app.UseHttpsRedirection();
 app.UseCors("AllowReactApp");
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-// Map SignalR hub
 app.MapHub<CrashGameHub>("/crashHub");
 
-// Uruchomienie CrashGameService
+
 var crashGameService = app.Services.GetRequiredService<ICrashGameService>();
 crashGameService.StartGameIfNotStarted();
 

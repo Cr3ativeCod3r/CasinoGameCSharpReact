@@ -54,31 +54,20 @@ export interface CrashGameState {
 }
 
 export interface CrashGameActions {
-  // Connection management
-  connect: () => Promise<void>;
-  disconnect: () => Promise<void>;
-  
-  // Balance management
+  setupListeners: () => void;
+  removeListeners: () => void;
   requestBalance: () => Promise<void>;
-  
-  // Game actions - POPRAWIONE z userId jako parametr
   placeBet: (userId?: string) => Promise<void>;
   withdraw: (userId?: string) => Promise<void>;
-  
-  // Event handlers
   handleGameUpdate: (gameUpdate: CrashGameUpdate) => void;
   handleGameCrashed: () => void;
   handleBetPlaced: (response: { success: boolean; amount?: number; message?: string }) => void;
   handleWithdrawSuccess: (response: { success: boolean; message?: string }) => void;
-  handleBalanceUpdate: (balanceUpdate: BalanceUpdate) => void;
-  
-  // Setters
+  handleBalanceUpdate: (balanceUpdate: any) => void;
   setBetAmount: (amount: number) => void;
   setAutoCashOut: (amount: number) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  
-  // Auto cash out logic - POPRAWIONE z userId jako parametr
   checkAutoCashOut: (userId?: string) => void;
 }
 

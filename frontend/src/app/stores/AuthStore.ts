@@ -44,17 +44,14 @@ const useAuthStore = create<AuthState & AuthActions>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      loading: false, // Zmieniono z isLoading na loading
+      loading: false,
       error: null,
       
       initialize: () => {
-        console.log('Initializing AuthStore...');
-        
-        // Sprawdź czy mamy token w store
+      
         const currentState = get();
         let token = currentState.token;
-        
-        // Jeśli nie ma tokenu w store, sprawdź ciasteczko
+      
         if (!token) {
           token = getCookie('authToken');
         }
@@ -67,8 +64,6 @@ const useAuthStore = create<AuthState & AuthActions>()(
             user: currentState.user 
           });
         } else if (!token) {
-          console.log('No token found, logging out');
-          // Jeśli nie ma tokenu, wyloguj użytkownika
           set({ 
             user: null, 
             token: null, 
@@ -156,8 +151,7 @@ const useAuthStore = create<AuthState & AuthActions>()(
           isAuthenticated: false, 
           error: null 
         });
-        
-        // Przekieruj do strony głównej
+      
         if (typeof window !== 'undefined') {
           window.location.href = '/';
         }

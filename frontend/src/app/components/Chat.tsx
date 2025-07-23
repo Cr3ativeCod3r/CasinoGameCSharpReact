@@ -1,138 +1,39 @@
-import React, { useState, useEffect, useRef } from 'react';
-import * as signalR from '@microsoft/signalr';
+import React, { useEffect, useRef } from 'react';
+import useChatStore from '@/app/stores/ChatStore';
 import useAuthStore from '@/app/stores/AuthStore';
-import axios from 'axios';
-
-interface ChatMessage {
-  id?: string;
-  userId: string;
-  userNick: string;
-  content: string;
-  createdAt: string;
-}
-
-interface ChatProps {
-  className?: string;
-  style?: React.CSSProperties;
-}
+import useConnectionStore from '@/app/stores/ConnectionStore';
+import { ChatProps } from "@/app/types/chat";
 
 const Chat: React.FC<ChatProps> = ({ className, style }) => {
-  const { isAuthenticated, user, token, initialize } = useAuthStore();
-  const [connection, setConnection] = useState<signalR.HubConnection | null>(null);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputMessage, setInputMessage] = useState<string>('');
-  const [isConnected, setIsConnected] = useState<boolean>(false);
-  const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const { isAuthenticated, user } = useAuthStore();
+  const { connected: isConnected } = useConnectionStore();
+  const {
+    messages,
+    inputMessage,
+    setInputMessage,
+    sendMessage,
+    error
+  } = useChatStore();
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  const API_URL = 'http://localhost:5000';
-
-  useEffect(() => {
-    if (!isInitialized) {
-      initialize();
-      setIsInitialized(true);
-    }
-  }, [initialize, isInitialized]);
 
   const scrollToBottom = (): void => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const fetchOldMessages = async (): Promise<void> => {
-    try {
-      const response = await axios.get(`${API_URL}/api/chat/messages`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-      const oldMessages: ChatMessage[] = response.data;
-      setMessages(oldMessages.reverse());
-    } catch (error) {
-      // error handling
-    }
-  };
-
-  useEffect(() => {
-    if (!isInitialized || !isAuthenticated || !token || !user) {
-      return;
-    }
-
-    const newConnection = new signalR.HubConnectionBuilder()
-      .withUrl(`${API_URL}/crashHub`, {
-        accessTokenFactory: () => token
-      })
-      .withAutomaticReconnect()
-      .configureLogging(signalR.LogLevel.Information)
-      .build();
-
-    setConnection(newConnection);
-
-    newConnection.start()
-      .then(() => {
-        setIsConnected(true);
-        fetchOldMessages();
-      })
-      .catch(() => {
-        setIsConnected(false);
-      });
-
-    newConnection.on('ReceiveMessage', (message: ChatMessage) => {
-      setMessages(prevMessages => [...prevMessages, message]);
-    });
-
-    newConnection.on('Error', (error: string) => {
-      alert(error);
-    });
-
-    newConnection.onreconnected(() => {
-      setIsConnected(true);
-      fetchOldMessages();
-    });
-
-    newConnection.onclose(() => {
-      setIsConnected(false);
-    });
-
-    return () => {
-      newConnection.stop();
-    };
-  }, [isInitialized, isAuthenticated, token, user]);
-
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  const sendMessage = async (): Promise<void> => {
-    if (inputMessage.trim() && connection && isConnected) {
-      try {
-        await connection.invoke('SendMessage', inputMessage.trim());
-        setInputMessage('');
-      } catch {
-        alert('Nie udało się wysłać wiadomości');
-      }
-    }
-  };
 
   const handleSubmit = (e: React.FormEvent | React.KeyboardEvent): void => {
     e.preventDefault();
     sendMessage();
   };
 
-  if (!isInitialized) {
-    return (
-      <div className={`flex-1 ${className || ''}`} style={style}>
-        <div 
-          className="h-64 border border-black overflow-y-scroll text-white p-2 flex items-center justify-center"
-          style={{ backgroundColor: 'rgb(24, 26, 30)' }}
-        >
-          <p className="text-gray-400">Ładowanie...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (!isAuthenticated || !user) {
     return (
       <div className={`flex-1 ${className || ''}`} style={style}>
-        <div 
+        <div
           className="h-64 border border-black overflow-y-scroll text-white p-2 flex items-center justify-center"
           style={{ backgroundColor: 'rgb(24, 26, 30)' }}
         >
@@ -156,7 +57,7 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
       </div>
 
       <div
-        className="h-64 border border-black overflow-y-scroll text-white p-2"
+        className="h-full border border-black overflow-y-scroll text-white p-2"
         style={{ backgroundColor: 'rgb(24, 26, 30)' }}
       >
         {messages.length === 0 ? (
@@ -179,7 +80,12 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Formularz wysyłania wiadomości */}
+      {error && (
+        <div className="text-red-400 text-xs mt-2 px-2">
+          {error}
+        </div>
+      )}
+
       <form className="mt-3 flex" onSubmit={handleSubmit}>
         <input
           type="text"

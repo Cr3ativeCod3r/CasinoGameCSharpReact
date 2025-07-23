@@ -7,36 +7,30 @@ import { useRouter } from 'next/navigation';
 const Navbar = () => {
   const router = useRouter();
   const {
-    connected,
     balance,
   } = useCrashGameStore();
- const {
-  user,
-  isAuthenticated,
-  logout,
-  initialize: initializeAuth 
-} = useAuthStore();
+  const {
+    user,
+    isAuthenticated,
+    logout,
+    initialize: initializeAuth 
+  } = useAuthStore();
 
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
 
-
   return (
-    <div className="w-full h-10 text-white text-center text-3xl flex items-center" style={{ backgroundColor: 'rgb(41, 44, 53)' }}>
-      <div className="float-left ml-12 font-bold" style={{ color: 'rgb(40, 117, 40)' }}>
+    <div className="w-full h-12 text-white text-center text-3xl flex items-center" style={{ backgroundColor: 'rgb(41, 44, 53)' }}>
+      <div className="flex items-center ml-12 font-bold" style={{ color: 'rgb(40, 117, 40)' }}>
         CSGOcrash
+     
+        <span className="mr-2 ml-[450px] text-white text-[20px]">
+          Coins {Math.floor(balance)}
+        </span>
+
       </div>
       <div className="ml-auto mr-4 text-xl flex items-center">
-        Coins:
-        <span className="ml-2 text-yellow-400 font-bold">
-          {balance}
-        </span>
-        {!connected && (
-          <span className="ml-2 text-red-400 text-sm">
-            (Offline)
-          </span>
-        )}
         {isAuthenticated && user && (
           <>
             <span className="ml-6 text-white font-semibold">

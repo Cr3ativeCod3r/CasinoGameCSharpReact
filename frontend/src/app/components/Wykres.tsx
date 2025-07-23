@@ -5,7 +5,7 @@ import { CrashGamePhase } from '@/app/types/crash';
 
 const CONFIG = {
   width: 500,
-  height: 400,
+  height: 300,
   backgroundColor: 0x181a1e,
   padding: 40,
   lineColor: 0x10b981,
@@ -336,7 +336,7 @@ const Wykres = () => {
 
   return (
     <div
-      className="float-left h-110 w-3/5 border flex items-center justify-center relative"
+      className="float-left h-[350px] w-3/5 border flex items-center justify-center relative"
       style={{ backgroundColor: 'rgb(24, 26, 30)', borderColor: 'rgb(41, 36, 36)' }}
     >
       <div id="crash-canvas" ref={canvasRef} style={{ width: '100%', height: '100%' }} />
