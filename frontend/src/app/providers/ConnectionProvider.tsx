@@ -19,17 +19,18 @@ const ConnectionProvider: React.FC<ConnectionProviderProps> = ({ children }) => 
     let mounted = true;
 
     const initializeConnection = async () => {
-      if (isAuthenticated && token && mounted) {
-        await connect();
-        setupCrashListeners();
-        setupChatListeners();
-        setTimeout(() => {
-          if (mounted) {
-            requestBalance();
-            fetchMessages();
-          }
-        }, 1000);
-      }
+      await connect();
+      setupCrashListeners();
+      setupChatListeners();
+
+      setTimeout(() => {
+        if (mounted && isAuthenticated && token) {
+          requestBalance();
+        }
+        if (mounted) {
+          fetchMessages();
+        }
+      }, 1000);
     };
 
     initializeConnection();

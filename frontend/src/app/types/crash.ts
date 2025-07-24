@@ -8,7 +8,6 @@ export interface CrashBet {
     withdrawProfit: number;
   };
 }
-
 export interface CrashGameUpdate {
   multiplier: number;
   xChart: number;
@@ -18,17 +17,13 @@ export interface CrashGameUpdate {
   bettingOpen: boolean;
   gameActive: boolean;
 }
-
 export interface PlaceBetRequest {
   betAmount: number;
 }
-
 export interface BalanceUpdate {
   balance: number;
 }
-
 export interface CrashGameState {
-  // Game state
   phase: CrashGamePhase;
   multiplier: number;
   xChart: number;
@@ -37,18 +32,12 @@ export interface CrashGameState {
   timeRemaining: number;
   bettingOpen: boolean;
   gameActive: boolean;
-  
-  // User balance
   balance: number;
-  
-  // UI state
   betAmount: number;
   autoCashOut: number;
   loading: boolean;
   error: string | null;
   connected: boolean;
-  
-  // SignalR
   connection: signalR.HubConnection | null;
   url: string;
 }
@@ -76,6 +65,3 @@ export enum CrashGamePhase {
   Running = 'Running',
   Crashed = 'Crashed'
 }
-
-// Import dla SignalR
-import * as signalR from '@microsoft/signalr';

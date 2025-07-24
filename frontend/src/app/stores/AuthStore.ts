@@ -1,20 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import axios from 'axios';
-import { User, AuthState } from '@/app/types/auth';
+import { User, AuthState, AuthActions } from '@/app/types/auth';
 import {setCookie, getCookie, deleteCookie } from "@/app/utils/cookies"
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-
-
-export interface AuthActions {
-  initialize: () => void;
-  register: (userData: Record<string, any>) => Promise<{ success: boolean; data?: any; error?: string }>;
-  login: (credentials: Record<string, any>) => Promise<{ success: boolean; data?: any; error?: string }>;
-  logout: () => void;
-  clearError: () => void;
-  updateUser: (userData: User) => void;
-}
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhos:5000";
 
 const useAuthStore = create<AuthState & AuthActions>()(
   persist(
@@ -87,18 +77,12 @@ const useAuthStore = create<AuthState & AuthActions>()(
         set({ loading: true, error: null });
         
         try {
-          console.log('Attempting to login user:', credentials.email);
-          
           const response = await axios.post(apiUrl + '/api/Auth/login', credentials, {
             headers: { 'Content-Type': 'application/json' }
           });
-          
-          const data = response.data;
-          console.log('Login response:', data);
-          
+          const data = response.data
           if (data.token && data.user) {
-            setCookie('authToken', data.token);
-            
+            setCookie('authToken', data.token);   
             set({ 
               token: data.token, 
               user: data.user, 
@@ -106,7 +90,6 @@ const useAuthStore = create<AuthState & AuthActions>()(
               loading: false 
             });
             
-            console.log('Login successful, user authenticated');
             return { success: true, data };
           } else {
             set({ loading: false, error: 'Nieprawidłowa odpowiedź serwera' });

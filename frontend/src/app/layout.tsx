@@ -4,8 +4,7 @@ import ConnectionProvider from '@/app/providers/ConnectionProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Auth App',
-  description: 'Authentication app with Next.js and Zustand',
+  title: 'Crash Game',
 };
 
 export default function RootLayout({

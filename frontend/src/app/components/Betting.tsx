@@ -116,7 +116,6 @@ const Betting = () => {
   };
 
   const getButtonHoverColor = () => {
-    // ciemniejszy odcień
     return 'rgb(170, 110, 0)';
   };
 
@@ -130,7 +129,7 @@ const Betting = () => {
   if (!isAuthenticated) {
     return (
       <div
-        className="float-right w-2/5 h-[200px] border text-white p-2 flex items-center justify-center"
+        className="float-right w-full h-[350px] border text-white p-2 flex items-center justify-center"
         style={{
           backgroundColor: 'rgb(24, 26, 30)',
           borderColor: 'rgb(41, 36, 36)',

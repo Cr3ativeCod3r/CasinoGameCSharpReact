@@ -60,7 +60,7 @@ const LoginForm = () => {
         email: '',
         password: ''
       });
-      router.push('/game');
+      router.push('/');
     }
   };
 

@@ -1,31 +1,18 @@
 import { create } from "zustand";
 import * as signalR from "@microsoft/signalr";
 import useAuthStore from "./AuthStore";
-
-interface ConnectionState {
-  connection: signalR.HubConnection | null;
-  connected: boolean;
-  connecting: boolean;
-  error: string | null;
-  url: string;
-}
-
-interface ConnectionActions {
-  connect: () => Promise<void>;
-  disconnect: () => Promise<void>;
-  getConnection: () => signalR.HubConnection | null;
-  isConnected: () => boolean;
-  setError: (error: string | null) => void;
-}
+import { ConnectionActions, ConnectionState } from '@/app/types/signalR';
 
 type ConnectionStore = ConnectionState & ConnectionActions;
+
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhos:5000";
 
 const useConnectionStore = create<ConnectionStore>((set, get) => ({
   connection: null,
   connected: false,
   connecting: false,
   error: null,
-  url: "http://localhost:5000",
+  url: apiUrl,
 
   connect: async () => {
     const state = get();

@@ -35,18 +35,38 @@ class CrashGraphReact {
   constructor(private containerId: string) { }
 
   async init(): Promise<void> {
-    if (typeof window === 'undefined' || !window.PIXI) return;
-    this.app = new window.PIXI.Application();
-    await this.app.init({ width: CONFIG.width, height: CONFIG.height, backgroundColor: CONFIG.backgroundColor, antialias: true });
-    const container = document.getElementById(this.containerId);
-    if (container) {
-      container.innerHTML = '';
-      container.appendChild(this.app.canvas);
-      this._setupStage();
+    if (typeof window === 'undefined' || !window.PIXI) {
+      console.warn('PIXI is not available');
+      return;
+    }
+    
+    try {
+      this.app = new window.PIXI.Application();
+      await this.app.init({ 
+        width: CONFIG.width, 
+        height: CONFIG.height, 
+        backgroundColor: CONFIG.backgroundColor, 
+        antialias: true 
+      });
+      
+      const container = document.getElementById(this.containerId);
+      if (container) {
+        container.innerHTML = '';
+        container.appendChild(this.app.canvas);
+        this._setupStage();
+      }
+    } catch (error) {
+      console.error('Failed to initialize PIXI app:', error);
+      this.app = null;
     }
   }
 
   private _setupStage(): void {
+    if (!this.app) {
+      console.warn('Cannot setup stage: PIXI app not initialized');
+      return;
+    }
+
     this.stage = new window.PIXI.Container();
     this.app.stage.addChild(this.stage);
 
@@ -59,7 +79,7 @@ class CrashGraphReact {
     this.multiplierText.anchor.set(0.5);
     this.multiplierText.position.set(CONFIG.width / 2, CONFIG.height / 2);
 
-    this.crashedText = new window.PIXI.Text({ text: 'CRASHED!', style: CONFIG.crashedFontStyle });
+    this.crashedText = new window.PIXI.Text({ text: 'CRASHED', style: CONFIG.crashedFontStyle });
     this.crashedText.anchor.set(0.5);
     this.crashedText.position.set(CONFIG.width / 2, CONFIG.height / 2 - 60);
 
@@ -112,7 +132,6 @@ class CrashGraphReact {
     if (this.graphLine) this.graphLine.visible = true;
     if (this.multiplierText) {
       this.multiplierText.visible = true;
-      // Ustaw kolor mnożnika w zależności od tego czy user ma aktywny zakład
       this.multiplierText.style.fill = hasActiveBet ? CONFIG.multiplierFontStyleActive.fill : CONFIG.multiplierFontStyle.fill;
     }
   }
@@ -165,7 +184,6 @@ class CrashGraphReact {
 
   private _drawGraph(): void {
     if (!this.graphLine) return;
-    // Ustaw kolor linii w zależności od tego czy user ma aktywny zakład
     const lineColor = this.hasActiveBet ? CONFIG.lineColorActive : CONFIG.lineColor;
     this.graphLine.clear().stroke({ width: 4, color: lineColor });
     const segments = Math.max(10, Math.min(100, this.elapsedTime * 10));
@@ -217,7 +235,6 @@ class CrashGraphReact {
   private _updateMultiplierText(): void {
     if (this.multiplierText) {
       this.multiplierText.text = `${this.currentMultiplier.toFixed(2)}x`;
-      // Aktualizuj kolor mnożnika
       this.multiplierText.style.fill = this.hasActiveBet ? CONFIG.multiplierFontStyleActive.fill : CONFIG.multiplierFontStyle.fill;
     }
   }
@@ -249,10 +266,31 @@ class CrashGraphReact {
       cancelAnimationFrame(this.animationId);
       this.animationId = null;
     }
-    if (this.app) {
-      this.app.destroy(true, { children: true, texture: true, baseTexture: true });
-      this.app = null;
+    
+    // Check if app exists and has a destroy method before calling it
+    if (this.app && typeof this.app.destroy === 'function') {
+      try {
+        this.app.destroy(true, { 
+          children: true, 
+          texture: true, 
+          baseTexture: true 
+        });
+      } catch (error) {
+        console.warn('Error destroying PIXI app:', error);
+      }
     }
+    
+    // Clean up all references
+    this.app = null;
+    this.stage = null;
+    this.axisGraphics = null;
+    this.graphLine = null;
+    this.xAxisLabels = null;
+    this.yAxisLabels = null;
+    this.multiplierText = null;
+    this.crashedText = null;
+    this.crashMultiplierText = null;
+    this.waitText = null;
   }
 }
 
@@ -287,7 +325,6 @@ const Wykres = () => {
     const updateGraphVisuals = (currentState: { phase: CrashGamePhase, multiplier: number, timeRemaining: number }) => {
       if (!crashGraphRef.current) return;
       
-      // Sprawdź czy użytkownik ma aktywny zakład
       const userId = useAuthStore.getState().user?.id;
       const hasActiveBet = getHasActiveBet(currentState, userId);
       
@@ -319,17 +356,14 @@ const Wykres = () => {
   useEffect(() => {
     if (!crashGraphRef.current) return;
     
-    // Sprawdź czy użytkownik ma aktywny zakład
     const state = useCrashGameStore.getState();
     const currentBet = getCurrentUserBet(state, user?.id);
     const hasActiveBet = getHasActiveBet(state, user?.id);
     
-    // Sprawdź czy użytkownik wypłacił podczas gry
     const hasWithdrawn = currentBet?.inGame?.withdrew || false;
     
     switch (phase) {
       case CrashGamePhase.Running:
-        // Jeśli użytkownik wypłacił, przekaż false aby zmienić kolor na szary
         crashGraphRef.current.startAnimation(hasActiveBet && !hasWithdrawn);
         break;
       case CrashGamePhase.Crashed:
@@ -365,7 +399,7 @@ const Wykres = () => {
     >
       <div id="crash-canvas" ref={canvasRef} style={{ width: '100%', height: '100%' }} />
       <div ref={loadingRef} className="absolute inset-0 flex items-center justify-center text-center pointer-events-none">
-        <div className="text-white text-2xl font-bold">Loading Chart...</div>
+        
       </div>
     </div>
   );

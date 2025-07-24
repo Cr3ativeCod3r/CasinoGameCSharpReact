@@ -1,27 +1,12 @@
 import { create } from "zustand";
 import axios from "axios";
-import { ChatMessage } from "@/app/types/chat";
 import useConnectionStore from "./ConnectionStore";
 import useAuthStore from "./AuthStore";
 
-interface ChatState {
-  messages: ChatMessage[];
-  inputMessage: string;
-  loading: boolean;
-  error: string | null;
-}
+import { ChatMessage } from "@/app/types/chat";
+import { ChatActions, ChatState } from '@/app/types/chat';
 
-interface ChatActions {
-  setInputMessage: (message: string) => void;
-  sendMessage: () => Promise<void>;
-  fetchMessages: () => Promise<void>;
-  addMessage: (message: ChatMessage) => void;
-  clearMessages: () => void;
-  setError: (error: string | null) => void;
-  setupListeners: () => void;
-  removeListeners: () => void;
-}
-
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhos:5000";
 type ChatStore = ChatState & ChatActions;
 
 const useChatStore = create<ChatStore>((set, get) => ({
@@ -59,7 +44,7 @@ const useChatStore = create<ChatStore>((set, get) => ({
     set({ loading: true, error: null });
 
     try {
-      const response = await axios.get("http://localhost:5000/api/chat/messages", {
+      const response = await axios.get(apiUrl + "/api/chat/messages", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const oldMessages: ChatMessage[] = response.data;

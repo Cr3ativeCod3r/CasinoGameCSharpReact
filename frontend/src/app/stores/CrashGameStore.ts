@@ -9,6 +9,7 @@ import {
 } from "@/app/types/crash";
 import useConnectionStore from "./ConnectionStore";
 
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhos:5000";
 type CrashGameStore = CrashGameState & CrashGameActions;
 
 const useCrashGameStore = create<CrashGameStore>((set, get) => ({
@@ -27,7 +28,7 @@ const useCrashGameStore = create<CrashGameStore>((set, get) => ({
   error: null,
   connected: false,
   connection: null,
-  url: process.env.NEXT_PUBLIC_API_URL,
+  url: apiUrl,
 
 
   setupListeners: () => {

@@ -1,31 +1,52 @@
 'use client'
-import useCrashGameStore, { 
-  getBetsArray, 
+import useCrashGameStore, {
+  getBetsArray,
 } from '@/app/stores/CrashGameStore';
 import { CrashGamePhase } from '@/app/types/crash';
 
 const PlayerInGame = () => {
-  const { gameActive, multiplier, phase } = useCrashGameStore();
+  const {phase } = useCrashGameStore();
   const betsArray = getBetsArray(useCrashGameStore.getState());
 
-  const getRowColor = (bet) => {
+  interface InGame {
+    withdrew: boolean;
+    withdrawProfit: number;
+    withdrawMultiplier: number;
+  }
+
+  interface Bet {
+    playerID: string;
+    playerName: string;
+    betAmount: number;
+    inGame: InGame;
+  }
+
+  interface GetProfitBet {
+    betAmount: number;
+    inGame: InGame;
+  }
+
+  interface ShouldShowProfitBet {
+    inGame: InGame;
+  }
+
+  const getRowColor = (bet: Bet): string => {
     if (bet.inGame.withdrew) {
       return bet.inGame.withdrawProfit > bet.betAmount ? 'text-[rgb(40,117,40)]' : 'text-red-400';
     }
-    
+
     if (phase === CrashGamePhase.Crashed) {
       return 'text-red-400';
     }
-    
+
     return 'text-[rgb(200,130,0)]';
   };
 
-
-  const shouldShowProfit = (bet) => {
+  const shouldShowProfit = (bet: ShouldShowProfitBet): boolean => {
     return bet.inGame.withdrew || phase === CrashGamePhase.Crashed;
   };
 
-  const getProfit = (bet) => {
+  const getProfit = (bet: GetProfitBet): string => {
     if (bet.inGame.withdrew) {
       const profit = bet.inGame.withdrawProfit - bet.betAmount;
       return (profit > 0 ? '+' : '') + profit.toLocaleString();
@@ -34,14 +55,14 @@ const PlayerInGame = () => {
   };
 
   return (
-    <div 
+    <div
       className="w-full border h-full"
-      style={{ 
+      style={{
         backgroundColor: 'rgb(24, 26, 30)',
         borderColor: 'rgb(41, 36, 36)'
       }}
     >
-      <div 
+      <div
         className="w-full h-10"
         style={{ backgroundColor: 'rgb(41, 44, 53)' }}
       >
@@ -56,7 +77,7 @@ const PlayerInGame = () => {
           </thead>
         </table>
       </div>
-      
+
       <div className="overflow-y-auto">
         <table className="w-full border-collapse">
           <tbody>
@@ -69,7 +90,7 @@ const PlayerInGame = () => {
             ) : (
               betsArray.map((bet) => {
                 const rowColor = getRowColor(bet);
-                
+
                 return (
                   <tr key={bet.playerID}>
                     <td className={`text-md w-36 text-center p-2 ${rowColor}`}>
@@ -91,7 +112,7 @@ const PlayerInGame = () => {
           </tbody>
         </table>
       </div>
-    
+
     </div>
   );
 };

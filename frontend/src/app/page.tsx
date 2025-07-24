@@ -1,52 +1,67 @@
-'use client';
+'use client'
 
-import { observer } from 'mobx-react-lite';
-import { useState } from 'react';
-import authStore from '@/app/stores/AuthStore';
-import LoginForm from '@/app/components/LoginForm';
-import RegisterForm from '@/app/components/RegisterForm';
+import { useState } from 'react'
+import Navbar from '@/app/components/Navbar'
+import Wykres from '@/app/components/Chart'
+import Betting from '@/app/components/Betting'
+import Chat from '@/app/components/Chat'
+import History from '@/app/components/History'
+import PlayerInGame from '@/app/components/PlayerInGame'
 
-const HomePage = observer(() => {
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+export default function GamePage() {
+  const [activeView, setActiveView] = useState<'chat' | 'history'>('chat')
 
   return (
-    <div className="min-h-screen bg-[#181a1e] flex flex-col justify-center items-center">
-      <div className="w-full max-w-xl">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-white">
-            {activeTab === 'login' ? 'Sign in to your account' : 'Create your account'}
-          </h2>
+    <div className="font-sans min-h-screen bg-[rgb(24,26,30)] text-white overflow-hidden">
+      <Navbar />
+
+      <div className="flex h-[calc(100vh-64px)]"> 
+        <div className="flex flex-col w-3/5 ">
+
+<div>
+            <div className="border-r border-[rgb(41,36,36)]">
+              <Wykres />
+            </div>
+            <div className="w-2/5 ml-auto">
+              <Betting />
+            </div>
+            </div>
+
+
+          <div className="flex h-[50%] border-t border-[rgb(41,36,36)]">
+            <div className="w-10 bg-[rgb(41,44,53)] flex flex-col">
+              <div
+                className={`h-1/2 w-full text-orange-500 cursor-pointer flex items-center justify-center transform rotate-180 ${activeView === 'chat' ? 'bg-[rgb(26,31,31)]' : ''}`}
+                style={{ writingMode: 'vertical-rl' }}
+                onClick={() => setActiveView('chat')}
+              >
+                Chat
+              </div>
+              <div
+                className={`h-1/2 w-full text-orange-500 cursor-pointer flex items-center justify-center transform rotate-180 ${activeView === 'history' ? 'bg-[rgb(26,31,31)]' : ''}`}
+                style={{ writingMode: 'vertical-rl' }}
+                onClick={() => setActiveView('history')}
+              >
+                History
+              </div>
+            </div>
+
+            {/* Panel z Chatem lub Historią */}
+            <div className="flex-1 overflow-hidden">
+              {activeView === 'chat' ? (
+                <Chat style={{ height: '100%' }} />
+              ) : (
+                <History />
+              )}
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div className="mt-4 w-full max-w-xl">
-        <div className="bg-[#292c35] p-10 rounded-2xl shadow-lg min-h-[400px] flex flex-col justify-start">
-          {/* Tab Navigation */}
-          <div className="flex mb-8">
-            <button
-              onClick={() => setActiveTab('login')}
-              className={`flex-1 py-2 px-4 text-base font-medium text-center border-b-2 transition-colors duration-200 focus:outline-none ${activeTab === 'login' ? 'border-[#c88200] text-[#c88200]' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
-              style={{ fontWeight: 500 }}
-            >
-              Login
-            </button>
-            <button
-              onClick={() => setActiveTab('register')}
-              className={`flex-1 py-2 px-4 text-base font-medium text-center border-b-2 transition-colors duration-200 focus:outline-none ${activeTab === 'register' ? 'border-[#c88200] text-[#c88200]' : 'border-transparent text-gray-400 hover:text-gray-200'}`}
-              style={{ fontWeight: 500 }}
-            >
-              Register
-            </button>
-          </div>
-
-          {/* Form Content */}
-          <div className="flex-1 flex flex-col justify-center">
-            {activeTab === 'login' ? <LoginForm /> : <RegisterForm />}
-          </div>
+        {/* Prawa część: PlayerInGame */}
+        <div className="w-2/5 border-l border-[rgb(41,36,36)]">
+          <PlayerInGame />
         </div>
       </div>
     </div>
-  );
-});
-
-export default HomePage;
+  )
+}

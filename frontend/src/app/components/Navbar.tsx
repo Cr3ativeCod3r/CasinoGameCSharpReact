@@ -11,7 +11,7 @@ const Navbar = () => {
     user,
     isAuthenticated,
     logout,
-    initialize: initializeAuth 
+    initialize: initializeAuth
   } = useAuthStore();
 
   useEffect(() => {
@@ -21,16 +21,17 @@ const Navbar = () => {
   return (
     <div className="w-full h-12 text-white text-center text-3xl flex items-center" style={{ backgroundColor: 'rgb(41, 44, 53)' }}>
       <div className="flex items-center ml-12 font-bold" style={{ color: 'rgb(40, 117, 40)' }}>
-        CSGOcrash
-     
-        <span className="mr-2 ml-[450px] text-white text-[20px]">
-          Coins {Math.floor(balance).toLocaleString('en-US')}
-        </span>
+        CrashGame
+
+
 
       </div>
       <div className="ml-auto mr-4 text-xl flex items-center">
         {isAuthenticated && user && (
           <>
+            <span className="mr-2 ml-[450px] text-white text-[20px]">
+              Coins {Math.floor(balance).toLocaleString('en-US')}
+            </span>
             <span className="ml-6 text-white font-semibold">
               {user.nickName}
             </span>
@@ -45,7 +46,7 @@ const Navbar = () => {
         )}
         {!isAuthenticated && (
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push('/login')}
             className="ml-6 py-1 px-3 rounded bg-[#287528] hover:bg-[#1e5a1e] text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#287528]"
             style={{ fontSize: 14 }}
           >

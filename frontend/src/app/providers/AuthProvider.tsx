@@ -11,7 +11,7 @@ const AuthProvider = ({ children }: AuthProviderProps) => {
   const initialize = useAuthStore((state) => state.initialize);
 
   useEffect(() => {
-    initialize(); // 
+    initialize();
   }, [initialize]);
 
   return <>{children}</>;
