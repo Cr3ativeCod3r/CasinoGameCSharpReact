@@ -1,11 +1,11 @@
 import React, { useLayoutEffect, useRef } from 'react';
-import useChatStore from '@/app/stores/ChatStore';
-import useAuthStore from '@/app/stores/AuthStore';
-import useConnectionStore from '@/app/stores/ConnectionStore';
-import { ChatProps } from "@/app/types/chat";
+import useChatStore from '@/stores/ChatStore';
+import useAuthStore from '@/stores/AuthStore';
+import useConnectionStore from '@/stores/ConnectionStore';
+import type { ChatProps } from "@/types/chat";
 
 const Chat: React.FC<ChatProps> = ({ className, style }) => {
-  const { isAuthenticated, user } = useAuthStore();
+  const { user } = useAuthStore();
   const { connected: isConnected } = useConnectionStore();
   const {
     messages,
@@ -76,7 +76,7 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) handleSubmit(e); }}
-            placeholder={isConnected ? "Wiadomość..." : "Rozłączono..."}
+            placeholder={isConnected ? "Message..." : "Disconnected..."}
             className="p-2 text-sm text-black flex-1 rounded-l"
             style={{ backgroundColor: '#bbb1b1' }}
             disabled={!isConnected}
@@ -87,7 +87,7 @@ const Chat: React.FC<ChatProps> = ({ className, style }) => {
             disabled={!isConnected || !inputMessage.trim()}
             className="ml-1 px-3 py-1 text-sm bg-blue-600 text-white rounded-r hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed"
           >
-            Wyślij
+            Send
           </button>
         </form>
       )}

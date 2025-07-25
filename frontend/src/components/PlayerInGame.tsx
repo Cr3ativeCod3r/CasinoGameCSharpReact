@@ -1,8 +1,7 @@
-'use client'
 import useCrashGameStore, {
   getBetsArray,
-} from '@/app/stores/CrashGameStore';
-import { CrashGamePhase } from '@/app/types/crash';
+} from '@/stores/CrashGameStore';
+import { CrashGamePhase } from '@/types/crash';
 
 const PlayerInGame = () => {
   const {phase } = useCrashGameStore();

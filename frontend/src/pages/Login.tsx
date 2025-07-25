@@ -1,9 +1,7 @@
-'use client';
-
 import { observer } from 'mobx-react-lite';
 import { useState } from 'react';
-import LoginForm from '@/app/components/LoginForm';
-import RegisterForm from '@/app/components/RegisterForm';
+import LoginForm from '@/components/LoginForm';
+import RegisterForm from '@/components/RegisterForm';
 
 const HomePage = observer(() => {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');

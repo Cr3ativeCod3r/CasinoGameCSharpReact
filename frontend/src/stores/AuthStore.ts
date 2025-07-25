@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import axios from 'axios';
-import { User, AuthState, AuthActions } from '@/app/types/auth';
-import {setCookie, getCookie, deleteCookie } from "@/app/utils/cookies"
+import type{ User, AuthState, AuthActions } from '@/types/auth';
+import {setCookie, getCookie, deleteCookie } from "@/utils/cookies"
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhos:5000";
+
+const apiUrl = import.meta.env.VITE_API_URL || "http://localhos:5000";
 
 const useAuthStore = create<AuthState & AuthActions>()(
   persist(

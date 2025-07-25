@@ -1,11 +1,12 @@
 import { create } from "zustand";
 import * as signalR from "@microsoft/signalr";
 import useAuthStore from "./AuthStore";
-import { ConnectionActions, ConnectionState } from '@/app/types/signalR';
+import type { ConnectionActions, ConnectionState } from '@/types/signalR';
 
 type ConnectionStore = ConnectionState & ConnectionActions;
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhos:5000";
+
+const apiUrl = import.meta.env.VITE_API_URL || "http://localhos:5000";
 
 const useConnectionStore = create<ConnectionStore>((set, get) => ({
   connection: null,

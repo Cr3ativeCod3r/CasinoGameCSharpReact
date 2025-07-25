@@ -4,10 +4,10 @@ import useCrashGameStore, {
   canWithdraw,
   getCurrentUserBet,
   getHasActiveBet,
-} from '@/app/stores/CrashGameStore';
-import useAuthStore from '@/app/stores/AuthStore';
-import useConnectionStore from '@/app/stores/ConnectionStore';
-import { CrashGamePhase } from '@/app/types/crash';
+} from '@/stores/CrashGameStore';
+import useAuthStore from '@/stores/AuthStore';
+import useConnectionStore from '@/stores/ConnectionStore';
+import { CrashGamePhase } from '@/types/crash';
 
 const Betting = () => {
   const [betInput, setBetInput] = useState('');

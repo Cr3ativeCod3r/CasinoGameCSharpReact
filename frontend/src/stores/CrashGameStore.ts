@@ -1,19 +1,20 @@
 import { create } from "zustand";
-import {
+import type {
   CrashBet,
   CrashGameUpdate,
   PlaceBetRequest,
   CrashGameState,
   CrashGameActions,
-  CrashGamePhase,
-} from "@/app/types/crash";
+} from "@/types/crash";
+import { CrashGamePhase } from "@/types/crash";
 import useConnectionStore from "./ConnectionStore";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhos:5000";
+
+const apiUrl = import.meta.env.VITE_API_URL || "http://localhos:5000";
 type CrashGameStore = CrashGameState & CrashGameActions;
 
 const useCrashGameStore = create<CrashGameStore>((set, get) => ({
- phase: CrashGamePhase.Betting,
+  phase: CrashGamePhase.Betting,
   multiplier: 1.0,
   xChart: 0.0,
   yChart: 0.0,
@@ -29,7 +30,6 @@ const useCrashGameStore = create<CrashGameStore>((set, get) => ({
   connected: false,
   connection: null,
   url: apiUrl,
-
 
   setupListeners: () => {
     const connectionStore = useConnectionStore.getState();

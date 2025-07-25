@@ -3,10 +3,11 @@ import axios from "axios";
 import useConnectionStore from "./ConnectionStore";
 import useAuthStore from "./AuthStore";
 
-import { ChatMessage } from "@/app/types/chat";
-import { ChatActions, ChatState } from '@/app/types/chat';
+import type{ ChatMessage } from "@/types/chat";
+import type{ ChatActions, ChatState } from '@/types/chat';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhos:5000";
+
+const apiUrl = import.meta.env.VITE_API_URL || "http://localhos:5000";
 type ChatStore = ChatState & ChatActions;
 
 const useChatStore = create<ChatStore>((set, get) => ({

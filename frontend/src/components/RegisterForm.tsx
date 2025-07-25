@@ -1,20 +1,18 @@
-'use client';
-
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import useAuthStore from '@/app/stores/AuthStore';
-import { LoginDto } from '@/app/types/auth';
+import useAuthStore from '@/stores/AuthStore';
+import type { RegisterDto } from '@/types/auth';
 
-const LoginForm = () => {
-  const router = useRouter();
-  const { login, loading, error } = useAuthStore();
+const RegisterForm = () => {
+  const { register, loading, error } = useAuthStore();
   
-  const [formData, setFormData] = useState<LoginDto>({
+  const [formData, setFormData] = useState<RegisterDto>({
+    nickName: '',
     email: '',
     password: ''
   });
 
-  const [validationErrors, setValidationErrors] = useState<Partial<LoginDto>>({});
+  const [validationErrors, setValidationErrors] = useState<Partial<RegisterDto>>({});
+  const [successMessage, setSuccessMessage] = useState<string>('');
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -22,17 +20,28 @@ const LoginForm = () => {
       ...prev,
       [name]: value
     }));
-    
-    if (validationErrors[name as keyof LoginDto]) {
+
+    if (validationErrors[name as keyof RegisterDto]) {
       setValidationErrors(prev => ({
         ...prev,
         [name]: undefined
       }));
     }
+    if (successMessage) {
+      setSuccessMessage('');
+    }
   };
 
   const validateForm = (): boolean => {
-    const errors: Partial<LoginDto> = {};
+    const errors: Partial<RegisterDto> = {};
+
+    if (!formData.nickName) {
+      errors.nickName = 'Nickname is required';
+    } else if (formData.nickName.length < 3) {
+      errors.nickName = 'Nickname must be at least 3 characters';
+    } else if (formData.nickName.length > 50) {
+      errors.nickName = 'Nickname cannot exceed 50 characters';
+    }
 
     if (!formData.email) {
       errors.email = 'Email is required';
@@ -42,6 +51,10 @@ const LoginForm = () => {
 
     if (!formData.password) {
       errors.password = 'Password is required';
+    } else if (formData.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters';
+    } else if (formData.password.length > 100) {
+      errors.password = 'Password cannot exceed 100 characters';
     }
 
     setValidationErrors(errors);
@@ -53,30 +66,54 @@ const LoginForm = () => {
     
     if (!validateForm()) return;
 
-    const result = await login(formData);
+    const result = await register(formData);
     
     if (result.success) {
+      setSuccessMessage('Registration successful! You can now log in.');
       setFormData({
+        nickName: '',
         email: '',
         password: ''
       });
-      router.push('/');
     }
   };
 
   return (
     <div className="bg-[#181a1e] flex items-center justify-center">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-[#292c35] w-full"
-      >
+      <form onSubmit={handleSubmit} className="bg-[#292c35] w-full">
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
             {error}
           </div>
         )}
 
+        {successMessage && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4">
+            {successMessage}
+          </div>
+        )}
+
         <div>
+          <label htmlFor="nickName" className="block text-sm font-medium text-gray-200">
+            Nickname
+          </label>
+          <div className="mt-1">
+            <input
+              id="nickName"
+              name="nickName"
+              type="text"
+              value={formData.nickName}
+              onChange={handleInputChange}
+              className={`bg-[#181a1e] text-white border ${validationErrors.nickName ? 'border-red-300' : 'border-gray-300'} rounded-md px-3 py-2 w-full placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#c88200] focus:border-[#c88200]`}
+              placeholder="Enter your nickname"
+            />
+            {validationErrors.nickName && (
+              <p className="mt-2 text-sm text-red-600">{validationErrors.nickName}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-8">
           <label htmlFor="email" className="block text-sm font-medium text-gray-200">
             Email address
           </label>
@@ -122,7 +159,7 @@ const LoginForm = () => {
             disabled={loading}
             className={`w-full flex justify-center py-4 px-4 rounded-md shadow text-sm font-medium text-white transition-colors duration-200 ${loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#c88200] hover:bg-[#a86a00] focus:outline-none focus:ring-2 focus:ring-[#c88200]'}`}
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading ? 'Creating account...' : 'Create account'}
           </button>
         </div>
       </form>
@@ -130,4 +167,4 @@ const LoginForm = () => {
   );
 };
 
-export default LoginForm;
+export default RegisterForm;

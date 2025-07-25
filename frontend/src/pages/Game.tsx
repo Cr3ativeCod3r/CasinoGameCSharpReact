@@ -1,12 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import Navbar from '@/app/components/Navbar'
-import Wykres from '@/app/components/Chart'
-import Betting from '@/app/components/Betting'
-import Chat from '@/app/components/Chat'
-import History from '@/app/components/History'
-import PlayerInGame from '@/app/components/PlayerInGame'
+import Navbar from '@/components/Navbar'
+import Wykres from '@/components/Chart'
+import Betting from '@/components/Betting'
+import Chat from '@/components/Chat'
+import History from '@/components/History'
+import PlayerInGame from '@/components/PlayerInGame'
 
 export default function GamePage() {
   const [activeView, setActiveView] = useState<'chat' | 'history'>('chat')
@@ -15,17 +15,17 @@ export default function GamePage() {
     <div className="font-sans min-h-screen bg-[rgb(24,26,30)] text-white overflow-hidden">
       <Navbar />
 
-      <div className="flex h-[calc(100vh-64px)]"> 
+      <div className="flex h-[calc(100vh-64px)]">
         <div className="flex flex-col w-3/5 ">
 
-<div>
+          <div>
             <div className="border-r border-[rgb(41,36,36)]">
               <Wykres />
             </div>
             <div className="w-2/5 ml-auto">
               <Betting />
             </div>
-            </div>
+          </div>
 
 
           <div className="flex h-[50%] border-t border-[rgb(41,36,36)]">

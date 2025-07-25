@@ -1,9 +1,8 @@
-'use client'
 import { useEffect, useRef } from 'react';
-import useCrashGameStore from '@/app/stores/CrashGameStore';
-import useAuthStore from '@/app/stores/AuthStore';
-import { CrashGamePhase } from '@/app/types/crash';
-import { getHasActiveBet, getCurrentUserBet } from '@/app/stores/CrashGameStore';
+import useCrashGameStore from '@/stores/CrashGameStore';
+import useAuthStore from '@/stores/AuthStore';
+import { CrashGamePhase } from '@/types/crash';
+import { getHasActiveBet, getCurrentUserBet } from '@/stores/CrashGameStore';
 import { CONFIG } from "./chartConfig"
 
 declare global {
@@ -107,7 +106,11 @@ class CrashGraphReact {
     this.displayMaxTime = this.targetMaxTime;
     this.displayMaxMultiplier = this.targetMaxMultiplier;
 
-    if (this.graphLine) this.graphLine.clear();
+    // Natychmiastowe wyczyszczenie wszystkich elementów wizualnych
+    if (this.graphLine) {
+      this.graphLine.clear();
+      this.graphLine.visible = false;
+    }
     if (this.xAxisLabels) this.xAxisLabels.removeChildren();
     if (this.yAxisLabels) this.yAxisLabels.removeChildren();
     if (this.multiplierText) {
@@ -115,7 +118,6 @@ class CrashGraphReact {
       this.multiplierText.style.fill = CONFIG.multiplierFontStyle.fill;
       this.multiplierText.visible = false;
     }
-    if (this.graphLine) this.graphLine.visible = false;
     if (this.crashedText) this.crashedText.visible = false;
     if (this.crashMultiplierText) this.crashMultiplierText.visible = false;
     if (this.waitText) this.waitText.visible = false;
@@ -125,15 +127,24 @@ class CrashGraphReact {
 
   startAnimation(hasActiveBet: boolean = false): void {
     if (this.isRunning) return;
+    
+    // Najpierw kompletnie resetujemy stan
     this._resetState();
+    
+    // Następnie ustawiamy parametry gry
     this.isRunning = true;
     this.crashed = false;
     this.hasActiveBet = hasActiveBet;
+    
+    // Pokazujemy elementy potrzebne do gry
     if (this.graphLine) this.graphLine.visible = true;
     if (this.multiplierText) {
       this.multiplierText.visible = true;
       this.multiplierText.style.fill = hasActiveBet ? CONFIG.multiplierFontStyleActive.fill : CONFIG.multiplierFontStyle.fill;
     }
+    
+    // Ukrywamy tekst oczekiwania
+    if (this.waitText) this.waitText.visible = false;
   }
 
   update(elapsedTime: number, currentMultiplier: number, hasActiveBet: boolean = false): void {
@@ -150,20 +161,26 @@ class CrashGraphReact {
   showCrashed(finalMultiplier: number): void {
     this.isRunning = false;
     this.crashed = true;
+    
+    // Ukrywamy elementy gry
     if (this.multiplierText) this.multiplierText.visible = false;
+    if (this.graphLine) {
+      this.graphLine.clear();
+      this.graphLine.visible = false;
+    }
+    
+    // Pokazujemy elementy crash
     if (this.crashedText) this.crashedText.visible = true;
     if (this.crashMultiplierText) {
       this.crashMultiplierText.text = `@${finalMultiplier.toFixed(2)}x`;
       this.crashMultiplierText.visible = true;
     }
-    if (this.graphLine) {
-      this.graphLine.clear();
-      this.graphLine.visible = false;
-    }
   }
 
   showWaiting(timeRemaining: string): void {
+    // Kompletnie resetujemy stan przed pokazaniem oczekiwania
     this._resetState();
+    
     if (this.waitText) {
       this.waitText.text = `Next round in ${timeRemaining}`;
       this.waitText.visible = true;

@@ -1,8 +1,5 @@
-// components/History.tsx
-'use client'
-
 import { useEffect, useState } from 'react'
-import useAuthStore from '@/app/stores/AuthStore' // Adjust path as needed
+import useAuthStore from '@/stores/AuthStore' 
 
 interface Bet {
   playerName: string
@@ -24,6 +21,8 @@ interface CrashHistoryItem {
   bets: Bet[]
 }
 
+const apiUrl = import.meta.env.VITE_API_URL || "http://localhos:5000";
+
 export default function History() {
   const [history, setHistory] = useState<CrashHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -33,7 +32,7 @@ export default function History() {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/crashhistory/crashedhistory?count=20`)
+        const response = await fetch(apiUrl + `/api/crashhistory/crashedhistory?count=20`)
         const data = await response.json()
         
         if (data.success) {

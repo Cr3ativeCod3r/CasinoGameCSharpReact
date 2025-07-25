@@ -1,9 +1,9 @@
 "use client"
 import React, { useEffect } from 'react';
-import useConnectionStore from '@/app/stores/ConnectionStore';
-import useAuthStore from '@/app/stores/AuthStore';
-import useCrashGameStore from '@/app/stores/CrashGameStore';
-import useChatStore from '@/app/stores/ChatStore';
+import useConnectionStore from '@/stores/ConnectionStore';
+import useAuthStore from '@/stores/AuthStore';
+import useCrashGameStore from '@/stores/CrashGameStore';
+import useChatStore from '@/stores/ChatStore';
 
 interface ConnectionProviderProps {
   children: React.ReactNode;

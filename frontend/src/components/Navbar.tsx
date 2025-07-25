@@ -1,11 +1,10 @@
-'use client'
-import useCrashGameStore from '@/app/stores/CrashGameStore';
-import useAuthStore from '@/app/stores/AuthStore';
+import useCrashGameStore from '@/stores/CrashGameStore';
+import useAuthStore from '@/stores/AuthStore';
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useNavigate } from 'react-router-dom';
 
 const Navbar = () => {
-  const router = useRouter();
+  const navigate = useNavigate();
   const { balance } = useCrashGameStore();
   const {
     user,
@@ -22,9 +21,6 @@ const Navbar = () => {
     <div className="w-full h-12 text-white text-center text-3xl flex items-center" style={{ backgroundColor: 'rgb(41, 44, 53)' }}>
       <div className="flex items-center ml-12 font-bold" style={{ color: 'rgb(40, 117, 40)' }}>
         CrashGame
-
-
-
       </div>
       <div className="ml-auto mr-4 text-xl flex items-center">
         {isAuthenticated && user && (
@@ -46,7 +42,7 @@ const Navbar = () => {
         )}
         {!isAuthenticated && (
           <button
-            onClick={() => router.push('/login')}
+            onClick={() => navigate('/login')}
             className="ml-6 py-1 px-3 rounded bg-[#287528] hover:bg-[#1e5a1e] text-white text-sm font-bold focus:outline-none focus:ring-2 focus:ring-[#287528]"
             style={{ fontSize: 14 }}
           >

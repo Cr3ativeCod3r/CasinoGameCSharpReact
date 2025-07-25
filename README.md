@@ -1,56 +1,57 @@
 
-# 🧩 Crash Game
+🧩 Crash Game
 
-Projekt webowej aplikacji gry hazardowej z funkcjonalnościami realtime (SignalR), autoryzacją użytkowników (JWT) oraz frontendem w React (TypeScript, Zustand).
+A web-based gambling game project featuring realtime functionality (SignalR), user authentication (JWT), and a frontend built with React (TypeScript, Zustand).
 
-#Preview Beta
-<img width="1467" height="714" alt="Image" src="https://github.com/user-attachments/assets/e433b981-eb10-4dc9-9167-3d1c241b7dac" />
----
+Preview Beta
 
-## 📚 Stack technologiczny
+<img width="2934" height="1440" alt="Image" src="https://github.com/user-attachments/assets/a067fe88-4302-40e1-a56f-c0ef456140ce" />
+<img width="1786" height="1330" alt="Image" src="https://github.com/user-attachments/assets/4bc13df8-285e-4be0-8410-5b9405e0ee73" />
 
-### 🔧 Backend (.NET Core)
-- **ASP.NET Core** (.NET 9)
-- **Entity Framework Core** z bazą danych MySQL
-- **ASP.NET Identity** (rejestracja, logowanie, zarządzanie użytkownikami)
-- **JWT** (JSON Web Tokens) – autoryzacja API i SignalR
-- **SignalR** – komunikacja w czasie rzeczywistym (chat, gra crash)
-- **CORS** – obsługa połączeń z frontendu
-- **Swagger** – interaktywna dokumentacja API
 
-### 💻 Frontend (React)
-- **React 19.x**
-- **TypeScript**
-- **Zustand** – zarządzanie stanem aplikacji
-- **SignalR client** (`@microsoft/signalr`) – obsługa połączeń realtime
-- **Tailwind CSS / CSS Modules** – stylowanie UI
+📚 Tech Stack
 
----
+🔧 Backend (.NET Core)
+	•	ASP.NET Core (.NET 9)
+	•	Entity Framework Core with MySQL database
+	•	ASP.NET Identity (registration, login, user management)
+	•	JWT (JSON Web Tokens) – API and SignalR authorization
+	•	SignalR – real-time communication (chat, crash game)
+	•	CORS – support for frontend connections
+	•	Swagger – interactive API documentation
 
-## ✨ Funkcjonalności
+💻 Frontend (React)
+	•	React 19.x
+	•	TypeScript
+	•	Zustand – state management
+	•	SignalR client (@microsoft/signalr) – real-time connection support
+	•	Tailwind CSS / CSS Modules – UI styling
 
-### 🔐 Uwierzytelnianie
-- Rejestracja i logowanie z użyciem ASP.NET Identity
-- Token JWT generowany i przechowywany po stronie klienta
-- Zabezpieczone API i połączenia realtime (opcjonalne)
+⸻
 
-### 💬 Czat
-- Pobieranie wiadomości publicznie (bez logowania)
-- Wysyłanie wiadomości tylko dla zalogowanych użytkowników
-- Komunikacja realtime z użyciem SignalR
+✨ Features
 
-### 🧪 Inne
-- Swagger (`/swagger`) z testowaniem endpointów
-- Konfiguracja CORS dla komunikacji z `localhost:3000`
+🔐 Authentication
+	•	Registration and login using ASP.NET Identity
+	•	JWT token generated and stored on the client side
+	•	Secured API and realtime connections (optional)
 
----
+💬 Chat
+	•	Public message fetching (without login)
+	•	Sending messages available only to logged-in users
+	•	Real-time communication using SignalR
 
-## 🔄 Jak uruchomić
+🧪 Misc
+	•	Swagger (/swagger) for endpoint testing
+	•	CORS configuration for communication with localhost:3000
 
-### ✅ Backend (C# .NET)
-1. Skonfiguruj `appsettings.json`:
+⸻
 
-```json
+🔄 How to Run
+
+✅ Backend (C# .NET)
+	1.	Configure appsettings.json:
+
 "JwtSettings": {
   "Issuer": "YourIssuer",
   "Audience": "YourAudience",
