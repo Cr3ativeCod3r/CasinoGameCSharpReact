@@ -69,10 +69,12 @@ const useConnectionStore = create<ConnectionStore>((set, get) => ({
 
       connection.onreconnecting((error) => {
         set({ connected: false, error: "Reconnecting..." });
+        console.log(error?.message)
       });
 
       connection.onreconnected((connectionId) => {
         set({ connected: true, error: null });
+        console.log(connectionId)
       });
 
       await connection.start();

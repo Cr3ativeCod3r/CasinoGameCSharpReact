@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import useCrashGameStore from '@/stores/CrashGameStore';
 import useAuthStore from '@/stores/AuthStore';
 import { CrashGamePhase } from '@/types/crash';
+import type { CrashGameState } from '@/types/crash';
 import { getHasActiveBet, getCurrentUserBet } from '@/stores/CrashGameStore';
 import { CONFIG } from "./chartConfig"
 
@@ -38,16 +39,16 @@ class CrashGraphReact {
       console.warn('PIXI is not available');
       return;
     }
-    
+
     try {
       this.app = new window.PIXI.Application();
-      await this.app.init({ 
-        width: CONFIG.width, 
-        height: CONFIG.height, 
-        backgroundColor: CONFIG.backgroundColor, 
-        antialias: true 
+      await this.app.init({
+        width: CONFIG.width,
+        height: CONFIG.height,
+        backgroundColor: CONFIG.backgroundColor,
+        antialias: true
       });
-      
+
       const container = document.getElementById(this.containerId);
       if (container) {
         container.innerHTML = '';
@@ -127,22 +128,22 @@ class CrashGraphReact {
 
   startAnimation(hasActiveBet: boolean = false): void {
     if (this.isRunning) return;
-    
+
     // Najpierw kompletnie resetujemy stan
     this._resetState();
-    
+
     // Następnie ustawiamy parametry gry
     this.isRunning = true;
     this.crashed = false;
     this.hasActiveBet = hasActiveBet;
-    
+
     // Pokazujemy elementy potrzebne do gry
     if (this.graphLine) this.graphLine.visible = true;
     if (this.multiplierText) {
       this.multiplierText.visible = true;
       this.multiplierText.style.fill = hasActiveBet ? CONFIG.multiplierFontStyleActive.fill : CONFIG.multiplierFontStyle.fill;
     }
-    
+
     // Ukrywamy tekst oczekiwania
     if (this.waitText) this.waitText.visible = false;
   }
@@ -161,14 +162,14 @@ class CrashGraphReact {
   showCrashed(finalMultiplier: number): void {
     this.isRunning = false;
     this.crashed = true;
-    
+
     // Ukrywamy elementy gry
     if (this.multiplierText) this.multiplierText.visible = false;
     if (this.graphLine) {
       this.graphLine.clear();
       this.graphLine.visible = false;
     }
-    
+
     // Pokazujemy elementy crash
     if (this.crashedText) this.crashedText.visible = true;
     if (this.crashMultiplierText) {
@@ -180,7 +181,7 @@ class CrashGraphReact {
   showWaiting(timeRemaining: string): void {
     // Kompletnie resetujemy stan przed pokazaniem oczekiwania
     this._resetState();
-    
+
     if (this.waitText) {
       this.waitText.text = `Next round in ${timeRemaining}`;
       this.waitText.visible = true;
@@ -283,20 +284,20 @@ class CrashGraphReact {
       cancelAnimationFrame(this.animationId);
       this.animationId = null;
     }
-    
+
     // Check if app exists and has a destroy method before calling it
     if (this.app && typeof this.app.destroy === 'function') {
       try {
-        this.app.destroy(true, { 
-          children: true, 
-          texture: true, 
-          baseTexture: true 
+        this.app.destroy(true, {
+          children: true,
+          texture: true,
+          baseTexture: true
         });
       } catch (error) {
         console.warn('Error destroying PIXI app:', error);
       }
     }
-    
+
     // Clean up all references
     this.app = null;
     this.stage = null;
@@ -339,12 +340,14 @@ const Wykres = () => {
       }
     };
 
-    const updateGraphVisuals = (currentState: { phase: CrashGamePhase, multiplier: number, timeRemaining: number }) => {
+
+
+    const updateGraphVisuals = (currentState: CrashGameState) => {
       if (!crashGraphRef.current) return;
-      
+
       const userId = useAuthStore.getState().user?.id;
       const hasActiveBet = getHasActiveBet(currentState, userId);
-      
+
       switch (currentState.phase) {
         case CrashGamePhase.Running:
           crashGraphRef.current.startAnimation(hasActiveBet);
@@ -372,13 +375,13 @@ const Wykres = () => {
 
   useEffect(() => {
     if (!crashGraphRef.current) return;
-    
+
     const state = useCrashGameStore.getState();
     const currentBet = getCurrentUserBet(state, user?.id);
     const hasActiveBet = getHasActiveBet(state, user?.id);
-    
+
     const hasWithdrawn = currentBet?.inGame?.withdrew || false;
-    
+
     switch (phase) {
       case CrashGamePhase.Running:
         crashGraphRef.current.startAnimation(hasActiveBet && !hasWithdrawn);
@@ -398,9 +401,9 @@ const Wykres = () => {
     const state = useCrashGameStore.getState();
     const currentBet = getCurrentUserBet(state, user?.id);
     const hasActiveBet = getHasActiveBet(state, user?.id);
-  
+
     const hasWithdrawn = currentBet?.inGame?.withdrew || false;
-    
+
     if (phase === CrashGamePhase.Running) {
       crashGraphRef.current.update(xChart, multiplier, hasActiveBet && !hasWithdrawn);
     } else if (phase === CrashGamePhase.Betting) {
@@ -416,7 +419,7 @@ const Wykres = () => {
     >
       <div id="crash-canvas" ref={canvasRef} style={{ width: '100%', height: '100%' }} />
       <div ref={loadingRef} className="absolute inset-0 flex items-center justify-center text-center pointer-events-none">
-        
+
       </div>
     </div>
   );

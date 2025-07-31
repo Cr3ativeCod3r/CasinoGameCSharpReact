@@ -9,7 +9,6 @@ import type {
 import { CrashGamePhase } from "@/types/crash";
 import useConnectionStore from "./ConnectionStore";
 
-
 const apiUrl = import.meta.env.VITE_API_URL || "http://localhos:5000";
 type CrashGameStore = CrashGameState & CrashGameActions;
 
@@ -317,8 +316,8 @@ export const canWithdraw = (
     state.phase === CrashGamePhase.Running &&
     state.gameActive &&
     getHasActiveBet(state, userId) &&
-    currentBet &&
-    !currentBet.inGame?.withdrew
+    !!currentBet &&
+    !(currentBet.inGame?.withdrew ?? false)
   );
 };
 

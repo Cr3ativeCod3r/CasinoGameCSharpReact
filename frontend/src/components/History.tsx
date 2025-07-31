@@ -25,7 +25,6 @@ const apiUrl = import.meta.env.VITE_API_URL || "http://localhos:5000";
 
 export default function History() {
   const [history, setHistory] = useState<CrashHistoryItem[]>([])
-  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { user, isAuthenticated } = useAuthStore()
 
@@ -42,9 +41,7 @@ export default function History() {
       } catch (err) {
         console.error('Błąd podczas pobierania historii gier:', err)
         setError('Nie udało się załadować historii.')
-      } finally {
-        setLoading(false)
-      }
+      } 
     }
 
     fetchHistory()
@@ -52,13 +49,6 @@ export default function History() {
     return () => clearInterval(interval)
   }, [])
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleTimeString('pl-PL', {
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
 
   const getUserBet = (game: CrashHistoryItem) => {
     if (!isAuthenticated || !user?.id) return null
