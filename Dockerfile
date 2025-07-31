@@ -1,7 +1,13 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
-COPY . .
+
+# Kopiuj tylko pliki projektu najpierw
+COPY ["backend.csproj", "./"]
 RUN dotnet restore "./backend.csproj"
+
+# Następnie kopiuj kod źródłowy (bez obj/bin)
+COPY . .
+
 RUN dotnet publish "./backend.csproj" -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
