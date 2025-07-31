@@ -1,21 +1,12 @@
-# Etap 1: build
 FROM mcr.microsoft.com/dotnet/sdk:9.0-preview AS build
 WORKDIR /src
-
-# Skopiuj projekt
 COPY . .
+RUN dotnet restore "./backend.csproj"
+RUN dotnet publish "./backend.csproj" -c Release -o /app/publish
 
-# Przywróć zależności
-RUN dotnet restore
-
-# Publikuj w trybie Release
-RUN dotnet publish -c Release -o /app/publish
-
-# Etap 2: runtime
 FROM mcr.microsoft.com/dotnet/aspnet:9.0-preview AS runtime
 WORKDIR /app
-
-# Skopiuj opublikowaną aplikację
 COPY --from=build /app/publish .
+ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 ENTRYPOINT ["dotnet", "backend.dll"]
