@@ -116,7 +116,6 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-app.UseCors("AllowReactApp");
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -128,4 +127,5 @@ var crashGameService = app.Services.GetRequiredService<ICrashGameService>();
 crashGameService.StartGameIfNotStarted();
 
 app.Run();
+
 
