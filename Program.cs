@@ -86,12 +86,12 @@ builder.Services.AddSignalR();
 
 // CORS configuration
 builder.Services.AddCors(options => {
-    options.AddPolicy("AllowReactApp", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("https://csgocrash.netlify.app", "https://localhost:3000")
+        policy.AllowAnyOrigin()
               .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+              .AllowAnyMethod();
+        // Note: AllowCredentials() cannot be used with AllowAnyOrigin()
     });
 });
 
@@ -128,3 +128,4 @@ var crashGameService = app.Services.GetRequiredService<ICrashGameService>();
 crashGameService.StartGameIfNotStarted();
 
 app.Run();
+
